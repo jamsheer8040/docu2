@@ -6,7 +6,7 @@ const { Op } = require('sequelize');
  */
 exports.getAllSalesOrders = async (req, res) => {
   try {
-    const where = {};
+    const where = { tenant_id: req.user.tenant_id };
     if (req.user && req.user.Role && req.user.Role.type === 'CustomerPortal') {
       const linkedIds = req.user.LinkedCustomers ? req.user.LinkedCustomers.map(c => c.id) : [];
       where.customer_id = { [Op.in]: linkedIds };
@@ -39,7 +39,8 @@ exports.getAllSalesOrders = async (req, res) => {
  */
 exports.getSalesOrderById = async (req, res) => {
   try {
-    const salesOrder = await SalesOrder.findByPk(req.params.id, {
+    const salesOrder = await SalesOrder.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
         { model: Customer, attributes: ['id', 'name', 'email', 'phone_whatsapp'] },
         { model: User, as: 'SalesExecutive', attributes: ['id', 'name', 'email'] },
@@ -110,7 +111,8 @@ exports.createSalesOrder = async (req, res) => {
       sales_executive_id,
       branch,
       customer_reference,
-      internal_remarks
+      internal_remarks,
+      tenant_id: req.user.tenant_id
     }, { transaction });
 
     if (items && items.length > 0) {
@@ -146,7 +148,8 @@ exports.pushService = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const itemId = req.params.itemId;
-    const item = await SalesOrderItem.findByPk(itemId, {
+    const item = await SalesOrderItem.findOne({
+      where: { id: itemId, tenant_id: req.user.tenant_id },
       include: [{ model: SalesOrder }],
       transaction
     });
@@ -168,7 +171,8 @@ exports.pushService = async (req, res) => {
       status: 'Pending',
       notes: `Pushed from Sales Order ${item.SalesOrder.order_number}\nRemarks: ${item.SalesOrder.internal_remarks || ''}\nDescription: ${item.description || ''}`,
       criticality: item.priority,
-      initial_criticality: item.priority
+      initial_criticality: item.priority,
+      tenant_id: req.user.tenant_id
     }, { transaction });
 
     // Link back to item and update status
@@ -191,7 +195,7 @@ exports.pushService = async (req, res) => {
  */
 exports.deleteSalesOrder = async (req, res) => {
   try {
-    const salesOrder = await SalesOrder.findByPk(req.params.id);
+    const salesOrder = await SalesOrder.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!salesOrder) return res.status(404).json({ success: false, message: 'Sales Order not found' });
     await salesOrder.destroy();
     res.json({ success: true, message: 'Sales Order deleted successfully' });
@@ -208,7 +212,8 @@ const { generateProformaInvoicePDF } = require('../utils/pdfGenerator');
  */
 exports.downloadProformaPDF = async (req, res) => {
   try {
-    const order = await SalesOrder.findByPk(req.params.id, {
+    const order = await SalesOrder.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
         { model: Customer },
         { model: SalesOrderItem }

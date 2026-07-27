@@ -11,7 +11,7 @@ exports.getDocuments = async (req, res) => {
   limit = Math.min(parseInt(limit), 100);
   const offset = (page - 1) * limit;
 
-  const where = {};
+  const where = { tenant_id: req.user.tenant_id };
   let customerIdsArray = [];
   if (customer_id) {
     customerIdsArray = String(customer_id).split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
@@ -145,7 +145,8 @@ exports.getDocuments = async (req, res) => {
  */
 exports.getDocumentById = async (req, res) => {
   try {
-    const document = await Document.findByPk(req.params.id, {
+    const document = await Document.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
         {
           model: Customer,
@@ -191,7 +192,7 @@ exports.getExpiringDocuments = async (req, res) => {
     }
 
     const { customer_id } = req.query;
-    const where = {};
+    const where = { tenant_id: req.user.tenant_id };
     let customerIdsArray = [];
     if (customer_id) {
       customerIdsArray = String(customer_id).split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
@@ -283,7 +284,8 @@ exports.createDocument = async (req, res) => {
 
     const document = await Document.create(data);
     // Fetch with customer to return a completely populated object
-    const populated = await Document.findByPk(document.id, {
+    const populated = await Document.findOne({
+      where: { id: document.id, tenant_id: req.user.tenant_id },
       include: [
         { model: Customer, attributes: ['name', 'phone_whatsapp'] },
         { model: DocumentType, attributes: ['name'] }
@@ -306,7 +308,7 @@ exports.updateDocument = async (req, res) => {
   }
 
   try {
-    let document = await Document.findByPk(req.params.id);
+    let document = await Document.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!document) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
@@ -339,7 +341,8 @@ exports.updateDocument = async (req, res) => {
     await document.update(data);
     
     // Fetch populated
-    document = await Document.findByPk(req.params.id, {
+    document = await Document.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
         { model: Customer, attributes: ['name', 'phone_whatsapp'] },
         { model: DocumentType, attributes: ['name'] }
@@ -358,7 +361,7 @@ exports.updateDocument = async (req, res) => {
  */
 exports.deleteDocument = async (req, res) => {
   try {
-    const document = await Document.findByPk(req.params.id);
+    const document = await Document.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!document) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
@@ -392,7 +395,8 @@ exports.getStaffNames = async (req, res) => {
     const whereClause = {
       staff_name: {
         [Op.ne]: null
-      }
+      },
+      tenant_id: req.user.tenant_id
     };
     
     if (customer_id) {
@@ -444,7 +448,7 @@ exports.getStaffNames = async (req, res) => {
 exports.incrementReminderCount = async (req, res) => {
   try {
     const { id } = req.params;
-    const document = await Document.findByPk(id);
+    const document = await Document.findOne({ where: { id, tenant_id: req.user.tenant_id } });
     if (!document) {
       return res.status(404).json({ success: false, message: 'Document not found' });
     }

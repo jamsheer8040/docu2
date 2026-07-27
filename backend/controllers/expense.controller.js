@@ -15,7 +15,7 @@ exports.listExpenses = async (req, res) => {
     limit = Math.min(parseInt(limit), 100);
     const offset = (page - 1) * limit;
 
-    const whereClause = {};
+    const whereClause = { tenant_id: req.user.tenant_id };
 
     if (status) whereClause.status = status;
     if (req.query.expense_sub_type_id) whereClause.expense_sub_type_id = req.query.expense_sub_type_id;
@@ -73,7 +73,8 @@ exports.listExpenses = async (req, res) => {
  */
 exports.getExpense = async (req, res) => {
   try {
-    const expense = await Expense.findByPk(req.params.id, {
+    const expense = await Expense.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
         { model: WalletAccount, attributes: ['id', 'name'] },
         { 
@@ -151,7 +152,7 @@ exports.createExpense = async (req, res) => {
  */
 exports.updateExpense = async (req, res) => {
     try {
-        const expense = await Expense.findByPk(req.params.id);
+        const expense = await Expense.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
         if (!expense) return res.status(404).json({ success: false, message: 'Expense not found' });
 
         const oldStatus = expense.status;
@@ -202,7 +203,7 @@ exports.markAsPaid = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { account_id, payment_date, amount } = req.body;
-    const expense = await Expense.findByPk(req.params.id, { transaction });
+    const expense = await Expense.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id }, transaction });
 
     if (!expense) return res.status(404).json({ success: false, message: 'Expense not found' });
     if (expense.status === 'Paid') return res.status(400).json({ success: false, message: 'Expense already fully paid' });
@@ -257,7 +258,7 @@ exports.markAsPaid = async (req, res) => {
  */
 exports.deleteExpense = async (req, res) => {
   try {
-    const expense = await Expense.findByPk(req.params.id);
+    const expense = await Expense.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!expense) return res.status(404).json({ success: false, message: 'Expense not found' });
     
     if (expense.status === 'Paid') {

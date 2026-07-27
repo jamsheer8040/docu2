@@ -3,6 +3,7 @@ const { Lead, Customer, User, LeadStatusHistory, ServiceType } = require('../mod
 exports.getLeads = async (req, res) => {
   try {
     const leads = await Lead.findAll({
+      where: { tenant_id: req.user.tenant_id },
       order: [['created_at', 'DESC']],
       include: [
         { model: User, as: 'Creator', attributes: ['id', 'name'] },
@@ -18,7 +19,8 @@ exports.getLeads = async (req, res) => {
 
 exports.getLeadById = async (req, res) => {
   try {
-    const lead = await Lead.findByPk(req.params.id, {
+    const lead = await Lead.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
         { model: User, as: 'Creator', attributes: ['id', 'name'] },
         { model: ServiceType, as: 'Service', attributes: ['id', 'name'] }
@@ -57,7 +59,7 @@ exports.createLead = async (req, res) => {
 
 exports.updateLead = async (req, res) => {
   try {
-    const lead = await Lead.findByPk(req.params.id);
+    const lead = await Lead.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
     
     const previousStatus = lead.status;
@@ -83,7 +85,7 @@ exports.updateLead = async (req, res) => {
 
 exports.deleteLead = async (req, res) => {
   try {
-    const lead = await Lead.findByPk(req.params.id);
+    const lead = await Lead.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
     await lead.destroy();
@@ -95,7 +97,7 @@ exports.deleteLead = async (req, res) => {
 
 exports.convertLead = async (req, res) => {
   try {
-    const lead = await Lead.findByPk(req.params.id);
+    const lead = await Lead.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
     if (lead.customer_id) {
@@ -151,7 +153,7 @@ exports.convertLead = async (req, res) => {
 };
 exports.trackWhatsappClick = async (req, res) => {
   try {
-    const lead = await Lead.findByPk(req.params.id);
+    const lead = await Lead.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
     await lead.increment('whatsapp_clicks', { by: 1 });

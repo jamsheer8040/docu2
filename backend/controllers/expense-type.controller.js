@@ -4,6 +4,7 @@ const ExpenseSubType = require('../models/ExpenseSubType');
 exports.listTypes = async (req, res) => {
     try {
         const types = await ExpenseType.findAll({
+            where: { tenant_id: req.user.tenant_id },
             include: [
                 {
                     model: ExpenseSubType,
@@ -33,7 +34,7 @@ exports.createType = async (req, res) => {
         const { type_name, description, status } = req.body;
         if (!type_name) return res.status(400).json({ success: false, message: 'Type Name is required' });
 
-        const existing = await ExpenseType.findOne({ where: { type_name } });
+        const existing = await ExpenseType.findOne({ where: { type_name, tenant_id: req.user.tenant_id } });
         if (existing) return res.status(400).json({ success: false, message: 'Type Name already exists' });
 
         const type = await ExpenseType.create({ 
@@ -51,13 +52,13 @@ exports.createType = async (req, res) => {
 
 exports.updateType = async (req, res) => {
     try {
-        const type = await ExpenseType.findByPk(req.params.id);
+        const type = await ExpenseType.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
         if (!type) return res.status(404).json({ success: false, message: 'Type not found' });
 
         const { type_name, description, status } = req.body;
         
         if (type_name && type_name !== type.type_name) {
-            const existing = await ExpenseType.findOne({ where: { type_name } });
+            const existing = await ExpenseType.findOne({ where: { type_name, tenant_id: req.user.tenant_id } });
             if (existing) return res.status(400).json({ success: false, message: 'Type Name already exists' });
         }
 
@@ -71,7 +72,7 @@ exports.updateType = async (req, res) => {
 
 exports.deleteType = async (req, res) => {
     try {
-        const type = await ExpenseType.findByPk(req.params.id);
+        const type = await ExpenseType.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
         if (!type) return res.status(404).json({ success: false, message: 'Type not found' });
 
         const subTypeCount = await ExpenseSubType.count({ where: { expense_type_id: type.id } });

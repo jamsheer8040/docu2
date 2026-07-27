@@ -5,6 +5,7 @@ const Expense = require('../models/Expense');
 exports.listSubTypes = async (req, res) => {
     try {
         const subTypes = await ExpenseSubType.findAll({
+            where: { tenant_id: req.user.tenant_id },
             include: [
                 {
                     model: ExpenseType,
@@ -29,7 +30,7 @@ exports.createSubType = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Sub Type Name and Parent Type are required' });
         }
 
-        const existing = await ExpenseSubType.findOne({ where: { sub_type_name, expense_type_id } });
+        const existing = await ExpenseSubType.findOne({ where: { sub_type_name, expense_type_id, tenant_id: req.user.tenant_id } });
         if (existing) {
             return res.status(400).json({ success: false, message: 'Sub Type already exists under this Parent' });
         }
@@ -51,7 +52,7 @@ exports.createSubType = async (req, res) => {
 
 exports.updateSubType = async (req, res) => {
     try {
-        const subType = await ExpenseSubType.findByPk(req.params.id);
+        const subType = await ExpenseSubType.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
         if (!subType) return res.status(404).json({ success: false, message: 'Sub Type not found' });
 
         const { sub_type_name, expense_type_id, description, status } = req.body;
@@ -60,7 +61,8 @@ exports.updateSubType = async (req, res) => {
             const existing = await ExpenseSubType.findOne({ 
                 where: { 
                     sub_type_name, 
-                    expense_type_id: expense_type_id || subType.expense_type_id 
+                    expense_type_id: expense_type_id || subType.expense_type_id,
+                    tenant_id: req.user.tenant_id
                 } 
             });
             if (existing) {
@@ -84,7 +86,7 @@ exports.updateSubType = async (req, res) => {
 
 exports.deleteSubType = async (req, res) => {
     try {
-        const subType = await ExpenseSubType.findByPk(req.params.id);
+        const subType = await ExpenseSubType.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
         if (!subType) return res.status(404).json({ success: false, message: 'Sub Type not found' });
 
         const expensesCount = await Expense.count({ where: { expense_sub_type_id: subType.id } });

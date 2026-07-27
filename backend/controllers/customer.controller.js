@@ -10,7 +10,7 @@ exports.getCustomers = async (req, res) => {
   limit = Math.min(parseInt(limit), 1000);
   const offset = (page - 1) * limit;
 
-  const where = {};
+  const where = { tenant_id: req.user.tenant_id };
   if (is_active !== undefined) {
     where.is_active = is_active === 'true';
   }
@@ -57,7 +57,8 @@ exports.getCustomers = async (req, res) => {
  */
 exports.getCustomerById = async (req, res) => {
   try {
-    const customer = await Customer.findByPk(req.params.id, {
+    const customer = await Customer.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
         { 
           model: Document, 
@@ -119,7 +120,7 @@ exports.updateCustomer = async (req, res) => {
   }
 
   try {
-    const customer = await Customer.findByPk(req.params.id);
+    const customer = await Customer.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found.' });
     }
@@ -135,7 +136,7 @@ exports.updateCustomer = async (req, res) => {
  */
 exports.deleteCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findByPk(req.params.id);
+    const customer = await Customer.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found.' });
     }
