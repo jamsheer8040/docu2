@@ -270,6 +270,11 @@ exports.createDocument = async (req, res) => {
     if (req.file) {
       data.file_path = `/uploads/documents/${req.file.filename}`;
     }
+    
+    // Explicitly set tenant_id to prevent AsyncLocalStorage context loss from multer
+    if (req.user && req.user.tenant_id) {
+        data.tenant_id = req.user.tenant_id;
+    }
 
     if (req.user?.Role?.type === 'CustomerPortal') {
       const userCustomerIds = req.user.LinkedCustomers?.map(c => c.id) || [];
