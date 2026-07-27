@@ -1,12 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   ssr: false,
-  srcDir: '.',
   compatibilityDate: '2024-11-01',
   css: ['~/assets/css/main.css'],
   devtools: { enabled: true },
   modules: [
     'vuetify-nuxt-module',
+    '@pinia/nuxt',
   ],
   vuetify: {
     vuetifyOptions: {

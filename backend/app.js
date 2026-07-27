@@ -44,7 +44,7 @@ const voucherDesignRoutes = require('./routes/voucher-design.routes');
 const leadRoutes = require('./routes/lead.routes');
 
 // Sync Database in development
-sequelize.sync()
+sequelize.sync({ alter: true })
   .then(async () => {
     console.log('[System] Synced successfully with all associations.');
     
