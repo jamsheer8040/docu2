@@ -6,12 +6,9 @@
         <p class="text-subtitle-1 text-secondary font-weight-medium">Manage customer service requests and dispatches</p>
       </div>
       <v-btn
-        color="primary"
+        class="btn-standard"
         size="large"
         prepend-icon="mdi-plus-circle"
-        rounded="xl"
-        elevation="2"
-        class="font-weight-bold"
         @click="openCreateDialog"
       >
         Create Sales Order
@@ -19,18 +16,18 @@
     </div>
 
     <!-- Search & Filters -->
-    <v-card class="glass-card mb-6 pa-4 rounded-2xl border-light" variant="flat">
+    <v-card class="soft-card mb-6 pa-4" variant="flat">
       <v-row align="center">
         <v-col cols="12" sm="4">
           <v-text-field
             v-model="search"
             prepend-inner-icon="mdi-magnify"
-            label="Search Orders"
-            variant="outlined"
-            density="compact"
+            placeholder="Search Orders..."
+            variant="solo"
+            flat
+            density="comfortable"
             hide-details
-            rounded="lg"
-            bg-color="surface"
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="4">
@@ -39,20 +36,21 @@
             :items="customers"
             item-title="name"
             item-value="id"
-            label="Filter by Customer"
-            variant="outlined"
-            density="compact"
+            prepend-inner-icon="mdi-filter-variant"
+            placeholder="Filter by Customer"
+            variant="solo"
+            flat
+            density="comfortable"
             hide-details
-            rounded="lg"
             clearable
-            bg-color="surface"
+            class="search-pill"
           ></v-select>
         </v-col>
       </v-row>
     </v-card>
 
     <!-- Data Table -->
-    <v-card class="glass-card rounded-2xl border-light overflow-hidden" variant="flat">
+    <v-card class="soft-card overflow-hidden" variant="flat">
       <v-data-table
         :headers="headers"
         :items="filteredSalesOrders"
@@ -79,6 +77,32 @@
           <v-chip size="small" color="info" variant="flat" class="font-weight-bold">
             {{ item.SalesOrderItems?.length || 0 }} Services
           </v-chip>
+        </template>
+
+        <template v-slot:item.confirmed="{ item }">
+          <div class="d-flex align-center">
+            <span class="text-subtitle-2 font-weight-medium mr-1" :class="getConfirmedCount(item) > 0 ? 'text-success' : 'text-grey'">
+              {{ getConfirmedCount(item) > 0 ? `${getConfirmedCount(item)}/${item.SalesOrderItems?.length} confirmed` : '-' }}
+            </span>
+            <v-icon
+              v-if="item.SalesOrderItems?.length > 0 && (getConfirmedCount(item) + getCancelledCount(item)) >= item.SalesOrderItems?.length"
+              color="success"
+              size="small"
+              title="All services processed"
+            >mdi-check-circle</v-icon>
+          </div>
+        </template>
+
+        <template v-slot:item.started="{ item }">
+          <span class="text-subtitle-2 font-weight-medium" :class="getStartedCount(item) > 0 ? 'text-primary' : 'text-grey'">
+            {{ getStartedCount(item) > 0 ? `${getStartedCount(item)}/${item.SalesOrderItems?.length} started` : '-' }}
+          </span>
+        </template>
+
+        <template v-slot:item.cancelled="{ item }">
+          <span class="text-subtitle-2 font-weight-medium" :class="getCancelledCount(item) > 0 ? 'text-error' : 'text-grey'">
+            {{ getCancelledCount(item) > 0 ? `${getCancelledCount(item)} cancelled` : '-' }}
+          </span>
         </template>
 
         <template v-slot:item.actions="{ item }">
@@ -156,6 +180,9 @@ const headers = [
   { title: 'Date', key: 'order_date', sortable: true },
   { title: 'Contact Person', key: 'contact_person', sortable: true },
   { title: 'Total Services', key: 'services_count', sortable: false },
+  { title: 'Confirmed', key: 'confirmed', sortable: true },
+  { title: 'Started', key: 'started', sortable: true },
+  { title: 'Cancelled', key: 'cancelled', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
 ]
 
@@ -238,6 +265,18 @@ const formatDate = (dateString) => {
   if (!dateString) return ''
   return new Date(dateString).toLocaleDateString()
 }
+
+const getConfirmedCount = (item) => {
+  return item.SalesOrderItems?.filter(i => i.confirmed || i.service_order_id != null).length || 0
+}
+
+const getStartedCount = (item) => {
+  return item.SalesOrderItems?.filter(i => i.service_order_id != null).length || 0
+}
+
+const getCancelledCount = (item) => {
+  return item.SalesOrderItems?.filter(i => i.cancelled || i.status === 'Cancelled').length || 0
+}
 </script>
 
 <style scoped>
@@ -249,14 +288,5 @@ const formatDate = (dateString) => {
   background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-.glass-card {
-  background: rgba(255, 255, 255, 0.7) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05) !important;
-}
-.border-light {
-  border: 1px solid rgba(226, 232, 240, 0.8);
 }
 </style>

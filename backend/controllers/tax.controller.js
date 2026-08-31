@@ -4,7 +4,7 @@ const { validationResult } = require('express-validator');
 exports.getTaxes = async (req, res) => {
   try {
     const taxes = await Tax.findAll({
-      where: { tenant_id: req.tenantId },
+      where: { tenant_id: req.user.tenant_id },
       order: [['name', 'ASC']]
     });
     res.json({ success: true, data: taxes });
@@ -22,7 +22,7 @@ exports.createTax = async (req, res) => {
   try {
     const value = req.body;
     const existing = await Tax.findOne({
-      where: { name: value.name, tenant_id: req.tenantId }
+      where: { name: value.name, tenant_id: req.user.tenant_id }
     });
 
     if (existing) {
@@ -31,7 +31,7 @@ exports.createTax = async (req, res) => {
 
     const tax = await Tax.create({
       ...value,
-      tenant_id: req.tenantId
+      tenant_id: req.user.tenant_id
     });
 
     res.status(201).json({ success: true, data: tax });
@@ -51,21 +51,22 @@ exports.updateTax = async (req, res) => {
     const { id } = req.params;
     const value = req.body;
     
-    const tax = await Tax.findOne({ where: { id, tenant_id: req.tenantId } });
+    const tax = await Tax.findOne({ where: { id, tenant_id: req.user.tenant_id } });
     if (!tax) {
       return res.status(404).json({ success: false, message: 'Tax not found' });
     }
 
     if (value.name && value.name !== tax.name) {
       const existing = await Tax.findOne({
-        where: { name: value.name, tenant_id: req.tenantId }
+        where: { name: value.name, tenant_id: req.user.tenant_id }
       });
       if (existing) {
         return res.status(400).json({ success: false, message: 'Tax name already exists' });
       }
     }
 
-    await tax.update(value);
+    const { id: tId, tenant_id, ...updateData } = value;
+    await tax.update(updateData);
     res.json({ success: true, data: tax });
   } catch (err) {
     console.error('Update Tax Error:', err);
@@ -76,7 +77,7 @@ exports.updateTax = async (req, res) => {
 exports.deleteTax = async (req, res) => {
   try {
     const { id } = req.params;
-    const tax = await Tax.findOne({ where: { id, tenant_id: req.tenantId } });
+    const tax = await Tax.findOne({ where: { id, tenant_id: req.user.tenant_id } });
     
     if (!tax) {
       return res.status(404).json({ success: false, message: 'Tax not found' });

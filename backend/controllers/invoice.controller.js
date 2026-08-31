@@ -10,13 +10,14 @@ const { generateInvoicePDF } = require('../utils/pdfGenerator');
 /**
  * Sequential Invoice Number Generator: INV-YYYY-XXXX
  */
-const getNextInvoiceNumber = async () => {
+const getNextInvoiceNumber = async (tenant_id) => {
     const year = new Date().getFullYear();
     const prefix = `INV-${year}-`;
     
     // Find the max invoice number for the current year
     const lastInvoice = await Invoice.findOne({
         where: {
+            tenant_id,
             invoice_number: { [Op.like]: `${prefix}%` }
         },
         order: [['invoice_number', 'DESC']]
@@ -40,7 +41,7 @@ exports.listInvoices = async (req, res) => {
         limit = Math.min(parseInt(limit), 100);
         const offset = (page - 1) * limit;
 
-        const whereClause = {};
+        const whereClause = { tenant_id: req.user.tenant_id };
         
         if (status) whereClause.status = status;
         if (customer_id) whereClause.customer_id = customer_id;
@@ -102,7 +103,8 @@ exports.listInvoices = async (req, res) => {
  */
 exports.getInvoice = async (req, res) => {
     try {
-        const invoice = await Invoice.findByPk(req.params.id, {
+        const invoice = await Invoice.findOne({
+            where: { id: req.params.id, tenant_id: req.user.tenant_id },
             include: [
                 { model: Customer },
                 { model: InvoiceItem }
@@ -128,7 +130,7 @@ exports.createInvoice = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invoice must have at least one item' });
         }
 
-        const invoiceNumber = await getNextInvoiceNumber();
+        const invoiceNumber = await getNextInvoiceNumber(req.user.tenant_id);
         
         // Calculate Totals
         let subtotal = 0;
@@ -142,7 +144,8 @@ exports.createInvoice = async (req, res) => {
             tax: tax || 0,
             due_date,
             notes,
-            status: status || 'Draft'
+            status: status || 'Draft',
+            tenant_id: req.user.tenant_id
         }, { transaction });
 
         const itemRecords = items.map(item => {
@@ -173,7 +176,7 @@ exports.createInvoice = async (req, res) => {
                 unit_price: unitPrice,
                 total: itemTotal,
                 wallet_id: item.wallet_id || null,
-                tenant_id: req.tenantId
+                tenant_id: req.user.tenant_id
             };
         });
 
@@ -216,7 +219,7 @@ exports.createInvoice = async (req, res) => {
         // If service was waiting for an invoice (CompletedInvoicePending), promote it to CompletedInvoiceCreated
         if (service_order_id) {
             const ServiceOrder = require('../models/ServiceOrder');
-            const order = await ServiceOrder.findByPk(service_order_id, { transaction });
+            const order = await ServiceOrder.findOne({ where: { id: service_order_id, tenant_id: req.user.tenant_id }, transaction });
             if (order && order.status === 'CompletedInvoicePending') {
                 await order.update({
                     status: 'CompletedInvoiceCreated'
@@ -250,7 +253,7 @@ exports.updateInvoice = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const { customer_id, service_order_id, items, discount, tax, due_date, notes, status } = req.body;
-        const invoice = await Invoice.findByPk(req.params.id, { transaction });
+        const invoice = await Invoice.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id }, transaction });
 
         if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
         if (invoice.status !== 'Draft' && invoice.status !== 'Pending Approval') {
@@ -292,7 +295,7 @@ exports.updateInvoice = async (req, res) => {
                 unit_price: unitPrice,
                 total: itemTotal,
                 wallet_id: item.wallet_id || null,
-                tenant_id: req.tenantId
+                tenant_id: req.user.tenant_id
             };
         });
 
@@ -342,7 +345,7 @@ exports.updateInvoice = async (req, res) => {
         // If service was waiting for an invoice (CompletedInvoicePending), promote it to CompletedInvoiceCreated
         if (service_order_id) {
             const ServiceOrder = require('../models/ServiceOrder');
-            const order = await ServiceOrder.findByPk(service_order_id, { transaction });
+            const order = await ServiceOrder.findOne({ where: { id: service_order_id, tenant_id: req.user.tenant_id }, transaction });
             if (order && order.status === 'CompletedInvoicePending') {
                 await order.update({
                     status: 'CompletedInvoiceCreated'
@@ -376,7 +379,8 @@ exports.updateStatus = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const { status, account_id, amount } = req.body; 
-        const invoice = await Invoice.findByPk(req.params.id, { 
+        const invoice = await Invoice.findOne({
+            where: { id: req.params.id, tenant_id: req.user.tenant_id },
             include: [{ model: InvoiceItem }],
             transaction 
         });
@@ -522,7 +526,7 @@ exports.updateStatus = async (req, res) => {
  */
 exports.deleteInvoice = async (req, res) => {
     try {
-        const invoice = await Invoice.findByPk(req.params.id);
+        const invoice = await Invoice.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
         if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
         
         if (invoice.status !== 'Draft' && invoice.status !== 'Pending Approval') {
@@ -541,7 +545,8 @@ exports.deleteInvoice = async (req, res) => {
  */
 exports.downloadPDF = async (req, res) => {
     try {
-        const invoice = await Invoice.findByPk(req.params.id, {
+        const invoice = await Invoice.findOne({
+            where: { id: req.params.id, tenant_id: req.user.tenant_id },
             include: [
                 { model: Customer },
                 { model: InvoiceItem }

@@ -70,31 +70,39 @@
             <v-col cols="12" md="5">
               <v-text-field
                 v-model="search"
-                label="Search Description"
+                placeholder="Search Description"
                 prepend-inner-icon="mdi-magnify"
                 hide-details
                 density="comfortable"
-                variant="outlined"
+                variant="solo"
+                flat
+                class="search-pill"
               ></v-text-field>
             </v-col>
             <v-col cols="6" md="3">
               <v-select
                 v-model="statusFilter"
                 :items="['All', 'Paid', 'Unpaid', 'Partially Paid']"
-                label="Status"
+                placeholder="Status Filter"
+                prepend-inner-icon="mdi-filter-variant"
                 hide-details
                 density="comfortable"
-                variant="outlined"
+                variant="solo"
+                flat
+                class="search-pill"
               ></v-select>
             </v-col>
              <v-col cols="6" md="4">
               <v-select
                 v-model="categoryFilter"
                 :items="['All', 'Office Rent', 'Utilities', 'Salaries', 'Marketing', 'Software/SaaS', 'Government Fees', 'Supplies', 'Travel', 'Other']"
-                label="Category"
+                placeholder="Category"
+                prepend-inner-icon="mdi-filter-variant"
                 hide-details
                 density="comfortable"
-                variant="outlined"
+                variant="solo"
+                flat
+                class="search-pill"
               ></v-select>
             </v-col>
           </v-row>

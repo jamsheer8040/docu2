@@ -75,6 +75,11 @@ console.log('  Loaded: Expense');
 const SystemConfig = require(path.join(__dirname, 'SystemConfig.js'));
 console.log('  Loaded: SystemConfig');
 
+// 9. Email
+const EmailTemplate = require(path.join(__dirname, 'EmailTemplate.js'));
+const EmailLog = require(path.join(__dirname, 'EmailLog.js'));
+console.log('  Loaded: EmailTemplate, EmailLog');
+
 // 7. Management / Shareholder
 const Shareholder = require(path.join(__dirname, 'Shareholder.js'));
 const OwnershipChange = require(path.join(__dirname, 'OwnershipChange.js'));
@@ -285,6 +290,13 @@ DividendDistribution.hasMany(DividendPayment, { foreignKey: 'distribution_id' })
 DividendPayment.belongsTo(WalletAccount, { foreignKey: 'wallet_id' });
 WalletAccount.hasMany(DividendPayment, { foreignKey: 'wallet_id' });
 
+// Email Associations
+EmailTemplate.belongsTo(Tenant, { foreignKey: 'tenant_id' });
+Tenant.hasMany(EmailTemplate, { foreignKey: 'tenant_id' });
+
+EmailLog.belongsTo(Tenant, { foreignKey: 'tenant_id' });
+Tenant.hasMany(EmailLog, { foreignKey: 'tenant_id' });
+
 console.log('[Models] All associations defined.');
 
 // Add Global Hooks for Automatic Tenant Scoping
@@ -400,7 +412,9 @@ const db = {
   DividendDistribution,
   DividendPayment,
   VoucherDesign,
-  VoucherDesignAuditLog
+  VoucherDesignAuditLog,
+  EmailTemplate,
+  EmailLog
 };
 
 module.exports = db;

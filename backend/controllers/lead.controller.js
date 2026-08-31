@@ -65,7 +65,8 @@ exports.updateLead = async (req, res) => {
     const previousStatus = lead.status;
     const newStatus = req.body.status;
     
-    await lead.update(req.body);
+    const { id: lId, tenant_id: lTenant, ...updateData } = req.body;
+    await lead.update(updateData);
 
     if (newStatus && previousStatus !== newStatus) {
       await LeadStatusHistory.create({

@@ -1,5 +1,5 @@
 <template>
-  <v-card class="pa-4 rounded-xl">
+  <v-card class="soft-card pa-4">
     <v-card-title class="pa-6 d-flex align-center">
       <div class="text-h5 font-weight-bold">
         <v-icon icon="mdi-receipt-text-plus-outline" class="mr-3" color="primary"></v-icon>
@@ -47,16 +47,18 @@
         <v-row>
           <!-- If Service Invoice: Service Order Selection -->
           <v-col cols="12" md="6" v-if="invoiceType === 'service'">
+            <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Choose Service Order *</label>
             <v-autocomplete
               v-model="state.service_order_id"
               :items="serviceOrders"
               :item-title="item => `${item.Customer?.name} - ${item.ServiceType?.name} (${item.status})`"
               item-value="id"
-              label="Choose Service Order *"
               placeholder="Search active assigned service"
               :rules="[v => !!v || 'Service Order is required']"
               variant="outlined"
               density="comfortable"
+              class="soft-input"
+              bg-color="transparent"
               :loading="loadingServiceOrders"
               @update:model-value="onServiceOrderSelected"
             ></v-autocomplete>
@@ -64,16 +66,18 @@
 
           <!-- Customer Selection -->
           <v-col cols="12" md="6">
+            <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Customer *</label>
             <v-autocomplete
               v-model="state.customer_id"
               :items="customers"
               item-title="name"
               item-value="id"
-              label="Customer *"
               placeholder="Search by name"
               :rules="[v => !!v || 'Customer is required']"
               variant="outlined"
               density="comfortable"
+              class="soft-input"
+              bg-color="transparent"
               :loading="loadingCustomers"
               :readonly="invoiceType === 'service'"
               :hint="invoiceType === 'service' ? 'Automatically set from Service Order' : ''"
@@ -83,12 +87,14 @@
 
           <!-- Date Selection -->
           <v-col cols="12" md="6">
+            <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Due Date</label>
             <v-text-field
               v-model="state.due_date"
-              label="Due Date"
               type="date"
               variant="outlined"
               density="comfortable"
+              class="soft-input"
+              bg-color="transparent"
             ></v-text-field>
           </v-col>
         </v-row>
@@ -111,62 +117,80 @@
           </v-btn>
         </div>
 
-        <div v-for="(item, index) in state.items" :key="index" class="item-row mb-4 pa-4 border rounded-xl bg-surface-variant-light">
+        <div v-for="(item, index) in state.items" :key="index" class="item-row mb-4 pa-4 soft-card">
           <v-row dense align="center">
             <!-- Item selection from catalog (For Manual Invoice) -->
             <v-col cols="12" md="3" v-if="invoiceType === 'manual'">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Item / Service Name *</label>
               <v-combobox
                 v-model="item.selectedItem"
                 :items="serviceTypes"
                 item-title="name"
-                label="Item / Service Name *"
                 placeholder="Select from existing catalog or type custom name"
                 :rules="[v => !!v || 'Item name is required']"
                 hide-details="auto"
                 variant="outlined"
                 density="comfortable"
+                class="soft-input"
+                bg-color="transparent"
                 @update:model-value="(val) => onItemCatalogSelected(index, val)"
               ></v-combobox>
             </v-col>
 
             <!-- Text Field Description (For Service Invoice or read-only display) -->
             <v-col cols="12" md="3" v-else>
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Description *</label>
               <v-text-field
                 v-model="item.description"
-                label="Description *"
                 placeholder="Service Description"
                 :rules="[v => !!v || 'Required']"
                 hide-details="auto"
+                class="soft-input"
+                variant="outlined"
+                density="comfortable"
+                bg-color="transparent"
               ></v-text-field>
             </v-col>
 
             <v-col cols="12" md="1">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Qty</label>
               <v-text-field
                 v-model.number="item.quantity"
-                label="Qty"
                 type="number"
                 min="1"
                 hide-details="auto"
+                class="soft-input"
+                variant="outlined"
+                density="comfortable"
+                bg-color="transparent"
                 @input="calculateRow(index)"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="2">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Cost (Govt Fee)</label>
               <v-text-field
                 v-model.number="item.cost_price"
-                label="Cost (Govt Fee)"
                 type="number"
                 min="0"
                 hide-details="auto"
+                class="soft-input"
+                variant="outlined"
+                density="comfortable"
+                bg-color="transparent"
                 @input="calculateRow(index)"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="2">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Service Charge</label>
               <v-text-field
                 v-model.number="item.service_charge"
-                label="Service Charge"
                 type="number"
                 min="0"
                 hide-details="auto"
+                class="soft-input"
+                variant="outlined"
+                density="comfortable"
+                bg-color="transparent"
                 @input="calculateRow(index)"
               ></v-text-field>
             </v-col>
@@ -192,30 +216,34 @@
           <!-- Second Row for VAT and Wallet Selection -->
           <v-row dense align="center" class="mt-2">
             <v-col cols="12" md="3">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Cost Payment Wallet</label>
               <v-autocomplete
                 v-model="item.wallet_id"
                 :items="wallets"
                 item-title="name"
                 item-value="id"
-                label="Cost Payment Wallet"
                 placeholder="Select wallet for cost deduction"
                 variant="outlined"
                 density="compact"
                 hide-details="auto"
+                class="soft-input"
+                bg-color="transparent"
                 :disabled="item.cost_price <= 0"
                 :rules="item.cost_price > 0 ? [v => !!v || 'Required when cost > 0'] : []"
               ></v-autocomplete>
             </v-col>
             <v-col cols="12" md="2" v-if="configStore.isTaxEnabled">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">VAT Rate</label>
               <v-select
                 v-model="item.vat_percentage"
                 :items="taxes"
                 item-title="name"
                 item-value="rate"
-                label="VAT Rate"
                 variant="outlined"
                 density="compact"
                 hide-details="auto"
+                class="soft-input"
+                bg-color="transparent"
                 @update:model-value="calculateRow(index)"
               ></v-select>
             </v-col>
@@ -238,16 +266,17 @@
         <!-- Totals & Notes Section -->
         <v-row class="mt-4">
           <v-col cols="12" md="7">
+            <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Notes & Payment Terms</label>
             <v-textarea
               v-model="state.notes"
-              label="Notes & Payment Terms"
               rows="3"
               placeholder="e.g. Terms and conditions, payment info, etc."
               variant="outlined"
-              class="mb-4"
+              class="mb-4 soft-input"
+              bg-color="transparent"
             ></v-textarea>
           </v-col>
-          <v-col cols="12" md="5" class="bg-grey-lighten-5 rounded-xl pa-6 border">
+          <v-col cols="12" md="5" class="soft-card pa-6">
             <div class="d-flex justify-space-between mb-4">
               <span class="opacity-70">Total Selling Price (Subtotal)</span>
               <span class="font-weight-bold">AED {{ totals.subtotal.toFixed(2) }}</span>
@@ -293,10 +322,8 @@
         Save as Draft
       </v-btn>
       <v-btn
-        color="primary"
-        variant="flat"
+        class="btn-standard px-8 ml-2"
         size="large"
-        class="px-8 font-weight-bold ml-2"
         :loading="invoiceStore.loading"
         @click="save('Issued')"
       >
@@ -610,14 +637,10 @@ const save = async (status) => {
 </script>
 
 <style scoped>
-.bg-surface-variant-light {
-    background-color: #F8F9FA;
-}
 .item-row {
     transition: all 0.2s;
 }
 .item-row:hover {
-    border-color: #0B57D0 !important;
-    background-color: #FFFFFF;
+    border: 1px solid #0B57D0 !important;
 }
 </style>

@@ -3,7 +3,7 @@ const { validationResult } = require('express-validator');
 
 exports.getUsers = async (req, res) => {
   try {
-    const where = {};
+    const where = { tenant_id: req.user.tenant_id };
     if (req.user?.Role?.name !== 'Developer') {
       where['$Role.name$'] = { [require('sequelize').Op.ne]: 'Developer' };
     }
@@ -35,7 +35,8 @@ exports.createUser = async (req, res) => {
       name,
       email,
       password_hash: password, // hooks hash it
-      role_id
+      role_id,
+      tenant_id: req.user.tenant_id
     });
 
     if (role_id && customer_ids && Array.isArray(customer_ids)) {
@@ -61,7 +62,7 @@ exports.createUser = async (req, res) => {
 
 exports.updateUser = async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id);
+    const user = await User.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
@@ -96,7 +97,7 @@ exports.updateUser = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id);
+    const user = await User.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }

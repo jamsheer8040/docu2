@@ -6,17 +6,14 @@
         <p class="text-subtitle-1 text-secondary font-weight-medium">Track and convert potential customers</p>
       </div>
       <div class="d-flex gap-4">
-        <v-btn-toggle v-model="viewMode" mandatory rounded="xl" class="border-light" density="comfortable" color="primary">
+        <v-btn-toggle v-model="viewMode" mandatory rounded="xl" density="comfortable" color="primary">
           <v-btn value="list" prepend-icon="mdi-format-list-bulleted">List</v-btn>
           <v-btn value="kanban" prepend-icon="mdi-view-column">Kanban</v-btn>
         </v-btn-toggle>
         <v-btn
-          color="primary"
+          class="btn-standard"
           size="large"
           prepend-icon="mdi-plus-circle"
-          rounded="xl"
-          elevation="2"
-          class="font-weight-bold"
           @click="openCreateDialog"
         >
           Add Lead
@@ -25,30 +22,31 @@
     </div>
 
     <!-- Search & Filters -->
-    <v-card class="glass-card mb-6 pa-4 rounded-2xl border-light" variant="flat">
+    <v-card class="soft-card mb-6 pa-4" variant="flat">
       <v-row align="center">
         <v-col cols="12" sm="4">
           <v-text-field
             v-model="search"
             prepend-inner-icon="mdi-magnify"
-            label="Search Leads"
-            variant="outlined"
-            density="compact"
+            placeholder="Search..."
+            variant="solo"
+            flat
+            density="comfortable"
             hide-details
-            rounded="lg"
-            bg-color="surface"
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="4" v-if="viewMode === 'list'">
           <v-select
             v-model="statusFilter"
             :items="['All', 'New', 'Contacted', 'Qualified', 'Won', 'Lost']"
-            label="Filter by Status"
-            variant="outlined"
-            density="compact"
+            prepend-inner-icon="mdi-filter-variant"
+            placeholder="Filter by Status"
+            variant="solo"
+            flat
+            density="comfortable"
             hide-details
-            rounded="lg"
-            bg-color="surface"
+            class="search-pill"
           ></v-select>
         </v-col>
       </v-row>
@@ -57,7 +55,7 @@
     <!-- ═══════════════════════════════════════ -->
     <!-- LIST VIEW                              -->
     <!-- ═══════════════════════════════════════ -->
-    <v-card v-if="viewMode === 'list'" class="glass-card rounded-2xl border-light overflow-hidden" variant="flat">
+    <v-card v-if="viewMode === 'list'" class="soft-card overflow-hidden" variant="flat">
       <v-data-table
         :headers="headers"
         :items="filteredLeads"
@@ -241,9 +239,8 @@
             <v-card
               v-for="lead in getLeadsByStatus(column)"
               :key="lead.id"
-              class="kanban-card cursor-pointer border-light"
-              elevation="1"
-              rounded="lg"
+              class="kanban-card soft-card cursor-pointer"
+              variant="flat"
               draggable="true"
               @dragstart="onDragStart($event, lead)"
               @click="openEditDialog(lead)"
@@ -541,9 +538,9 @@ onMounted(() => {
 .kanban-column {
   min-width: 300px;
   max-width: 300px;
-  background: rgba(var(--v-theme-surface-variant), 0.4);
-  border: 1px solid rgba(var(--v-border-color), 0.15);
-  border-radius: 16px;
+  background: transparent;
+  border: none;
+  border-radius: 24px;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -582,4 +579,5 @@ onMounted(() => {
   border-radius: 50%;
   flex-shrink: 0;
 }
+
 </style>

@@ -103,7 +103,8 @@ exports.createCustomer = async (req, res) => {
   }
 
   try {
-    const customer = await Customer.create(req.body);
+    const data = { ...req.body, tenant_id: req.user.tenant_id };
+    const customer = await Customer.create(data);
     res.status(201).json({ success: true, data: customer });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error creating customer.' });
@@ -124,7 +125,8 @@ exports.updateCustomer = async (req, res) => {
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found.' });
     }
-    await customer.update(req.body);
+    const { tenant_id, id, ...updateData } = req.body;
+    await customer.update(updateData);
     res.json({ success: true, data: customer });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error updating customer.' });

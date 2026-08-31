@@ -1,103 +1,227 @@
-/* High-Fidelity Reference Design System */
+/* Soft UI Design System - Global Styles */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --app-bg: #F4F7FE;
+  --app-bg: #F8FAFC; /* Extremely soft, almost white grey */
   --card-bg: #FFFFFF;
-  --primary-blue: #3B82F6; /* Soft modern blue matching reference */
-  --primary-shadow: 0px 8px 16px rgba(59, 130, 246, 0.25);
+  --primary-glow: 0 10px 25px -5px rgba(37, 99, 235, 0.45);
+  --soft-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.03);
   
-  /* Extremely Soft Elevations (No Sharp Edges) */
-  --soft-shadow: 0px 18px 40px rgba(112, 144, 176, 0.12);
-  --raised-shadow: 0px 10px 20px rgba(112, 144, 176, 0.08);
+  --text-primary: #0F172A;
+  --text-muted: #64748B;
+  --text-placeholder: #94A3B8;
   
-  --text-primary: #111827; /* Dark black for text and headings */
-  --text-secondary: #A3AED0;
+  --border-soft: rgba(226, 232, 240, 0.8);
 }
 
-html, body {
-  font-family: 'Outfit', sans-serif !important;
+html, body, .v-application {
+  font-family: 'Montserrat', sans-serif !important;
   background: var(--app-bg) !important;
   color: var(--text-primary) !important;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Base Card Style - MATCHING REFERENCE */
-.glass-card, .v-card {
+.v-application .text-body-1, .v-application .text-body-2, .v-application .text-subtitle-1, .v-application .text-subtitle-2, .v-application .text-caption, .v-application .text-overline {
+  font-family: 'Montserrat', sans-serif !important;
+  color: var(--text-primary) !important;
+}
+
+/* 1. Base Soft Card */
+.soft-card, .v-card {
   background: var(--card-bg) !important;
-  border: none !important; /* Removing the sharp borders completely */
+  border-radius: 24px !important;
+  border: 1px solid var(--border-soft) !important;
   box-shadow: var(--soft-shadow) !important;
-  border-radius: 20px !important;
 }
 
-/* Floating Navigation Elements */
-.floating-glass {
-  background: rgba(255, 255, 255, 0.8) !important;
-  backdrop-filter: blur(10px) !important;
+/* 1.5 Glassmorphic & Dreamy Dashboard Classes */
+.bg-dreamy-gradient {
+  background: linear-gradient(135deg, 
+    rgba(255, 235, 218, 1) 0%,   /* Soft Peach */
+    rgba(253, 224, 238, 1) 25%,  /* Soft Pink */
+    rgba(238, 230, 255, 1) 60%,  /* Soft Purple */
+    rgba(224, 242, 254, 1) 100%  /* Soft Blue */
+  ) !important;
+  background-attachment: fixed !important;
+}
+
+.glass-card, .v-card.glass-card {
+  background: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-radius: 28px !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 10px 40px -10px rgba(31, 38, 135, 0.05) !important;
+}
+
+.glass-card-ethereal, .v-card.glass-card-ethereal {
+  background: rgba(255, 255, 255, 0.35) !important; /* Highly translucent white */
+  backdrop-filter: blur(20px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
+  border-radius: 24px !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important; /* Crisp white glass edge */
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.04) !important; /* Extremely soft diffuse shadow */
+  transition: all 0.3s ease !important;
+}
+
+.glass-card-ethereal:hover {
+  background: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 12px 40px rgba(31, 38, 135, 0.07) !important;
+}
+
+/* 1.7 Glossy 3D Glass */
+.glass-card-3d {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 24px !important;
   border: none !important;
-  box-shadow: var(--raised-shadow) !important;
-  border-radius: 30px !important;
+  /* Flat, soft drop shadow only - NO 3D inset */
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.3s ease !important;
 }
 
-/* Unified Button Styling (Forces Exact Style Across Entire App) */
-.v-btn {
-  border-radius: 14px !important; /* Perfect match for the 14px-16px pill-rectangle hybrid */
-  text-transform: none !important;
-  font-weight: 700 !important;
-  letter-spacing: 0px !important;
+.glass-card-3d-purple {
+  background: rgba(245, 240, 255, 0.9) !important; /* Soft Purple */
+  border: none !important;
+}
+.glass-card-3d-blue {
+  background: rgba(240, 246, 255, 0.9) !important; /* Soft Blue */
+  border: none !important;
+}
+.glass-card-3d-green {
+  background: rgba(234, 248, 241, 0.9) !important; /* Soft Green */
+  border: none !important;
+}
+.glass-card-3d-orange {
+  background: rgba(255, 249, 230, 0.9) !important; /* Soft Yellow/Orange */
+  border: none !important;
+}
+.glass-card-3d-red {
+  background: rgba(255, 235, 235, 0.9) !important; /* Soft Red */
+  border: none !important;
+}
+.glass-card-3d-grey {
+  background: rgba(248, 250, 252, 0.9) !important; /* Soft Grey/White */
+  border: none !important;
 }
 
-.v-btn--variant-flat,
-.v-btn--variant-elevated {
-  background: var(--primary-blue) !important;
+/* 3D Plastic Buttons */
+.btn-3d {
+  background: linear-gradient(135deg, #8B5CF6, #6D28D9) !important;
   color: white !important;
-  box-shadow: var(--primary-shadow) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4), 0 6px 12px rgba(109, 40, 217, 0.4) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s !important;
+}
+.btn-3d:active {
+  transform: translateY(2px) !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(109, 40, 217, 0.3) !important;
+}
+
+/* Ethereal Neomorphism Glowing Icons */
+.icon-glow-base {
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.1), inset 0 4px 8px rgba(255,255,255,0.4) !important;
+}
+.icon-glow-purple {
+  background: linear-gradient(135deg, #A855F7, #7E22CE) !important;
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.4), 0 12px 24px -6px rgba(147, 51, 234, 0.8) !important;
+}
+.icon-glow-green {
+  background: linear-gradient(135deg, #22C55E, #15803D) !important;
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.4), 0 12px 24px -6px rgba(34, 197, 94, 0.8) !important;
+}
+.icon-glow-blue {
+  background: linear-gradient(135deg, #3B82F6, #1D4ED8) !important;
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.4), 0 12px 24px -6px rgba(59, 130, 246, 0.8) !important;
+}
+.icon-glow-orange {
+  background: linear-gradient(135deg, #F97316, #C2410C) !important;
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.4), 0 12px 24px -6px rgba(249, 115, 22, 0.8) !important;
+}
+
+.stat-pill, .v-card.stat-pill {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 8px 32px -8px rgba(31, 38, 135, 0.05) !important;
+}
+
+/* 2. Soft Inputs (Whisper thin borders, muted text) */
+.soft-input .v-field, .v-field {
+  border-radius: 16px !important;
+  background-color: var(--app-bg) !important;
+  transition: all 0.3s ease;
+  box-shadow: none !important;
+}
+
+/* Muted Icons and Text inside Inputs */
+.v-field .v-icon {
+  color: var(--text-placeholder) !important;
+  opacity: 1 !important;
+}
+.v-field input {
+  color: var(--text-muted) !important;
+  font-weight: 500;
+}
+.v-field input::placeholder {
+  color: var(--text-placeholder) !important;
+  opacity: 1 !important;
+}
+
+/* 3. Global Pill Buttons & Glowing Primary Button */
+.v-btn {
+  border-radius: 999px !important; /* Exaggerated curve pill shape */
+  text-transform: none !important;
+  letter-spacing: 0px !important;
+  font-weight: 700 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-standard, .v-btn--variant-elevated, .v-btn--variant-flat, .btn-3d {
+  background: linear-gradient(90deg, #A855F7, #6366F1) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 8px 24px -8px rgba(139, 92, 246, 0.6) !important;
+  text-shadow: none !important;
+}
+
+.btn-standard:hover, .v-btn--variant-elevated:hover, .v-btn--variant-flat:hover, .btn-3d:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 28px -6px rgba(139, 92, 246, 0.75) !important;
+}
+.btn-standard:active, .v-btn--variant-elevated:active, .v-btn--variant-flat:active, .btn-3d:active {
+  transform: translateY(1px) !important;
+  box-shadow: 0 4px 12px -4px rgba(139, 92, 246, 0.5) !important;
 }
 
 .v-btn--variant-outlined {
-  border: 1px solid #E2E8F0 !important;
-  color: var(--text-primary) !important;
+  border: 1px solid var(--border-soft) !important;
+  color: var(--text-muted) !important;
   background: transparent !important;
   box-shadow: none !important;
 }
 
-/* Inputs */
-.v-field {
-  background: var(--card-bg) !important;
-  border-radius: 12px !important;
-}
-
-/* Fix Vuetify outline border color instead of hiding it */
-.v-field--variant-outlined .v-field__outline__start,
-.v-field--variant-outlined .v-field__outline__notch::before,
-.v-field--variant-outlined .v-field__outline__notch::after,
-.v-field--variant-outlined .v-field__outline__end {
-  border-color: #E2E8F0 !important;
-  opacity: 1 !important;
-}
-
-.v-field--focused.v-field--variant-outlined .v-field__outline__start,
-.v-field--focused.v-field--variant-outlined .v-field__outline__notch::before,
-.v-field--focused.v-field--variant-outlined .v-field__outline__notch::after,
-.v-field--focused.v-field--variant-outlined .v-field__outline__end {
-  border-color: var(--primary-blue) !important;
-}
-
-.v-field--focused {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
-}
-
-/* Nav Bar */
+/* Nav Bar & Sidebar */
 .v-navigation-drawer, .v-app-bar {
   background: transparent !important;
   border: none !important;
 }
 
 /* Headings */
-h1, h2, h3, h4, .text-h3, .text-h4, .text-h5 {
+h1, h2, h3, h4, h5, h6, .text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6 {
+  font-family: 'Montserrat', sans-serif !important;
   color: var(--text-primary) !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
 }
 
 .text-gradient {
@@ -114,6 +238,7 @@ h1, h2, h3, h4, .text-h3, .text-h4, .text-h5 {
 .v-table .v-table__wrapper {
   background: var(--card-bg) !important;
   border-radius: 20px !important;
+  border: 1px solid var(--border-soft) !important;
 }
 
 /* Custom Scrollbar */
@@ -126,3 +251,41 @@ h1, h2, h3, h4, .text-h3, .text-h4, .text-h5 {
   border-radius: 10px;
 }
 
+/* Custom Search Pill Styling (Global) */
+.search-pill .v-field {
+  border-radius: 999px !important;
+  border: 1.5px solid transparent !important;
+  background-image: linear-gradient(#FFFFFF, #FFFFFF), linear-gradient(90deg, #A855F7, #6366F1) !important;
+  background-origin: border-box !important;
+  background-clip: padding-box, border-box !important;
+  box-shadow: 0 4px 15px -3px rgba(139, 92, 246, 0.2) !important; /* Subtle purple glow */
+  padding-left: 6px !important; /* Space for the inner circular icon */
+}
+
+/* Hide the default outline if it's there */
+.search-pill .v-field__outline {
+  display: none !important;
+}
+
+.search-pill .v-field__prepend-inner {
+  padding-right: 12px !important;
+  align-items: center !important;
+  padding-top: 0 !important;
+}
+
+.search-pill .v-field__prepend-inner .v-icon {
+  background: linear-gradient(90deg, #A855F7, #6366F1) !important; /* Gradient circle */
+  color: white !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  opacity: 1 !important;
+}
+
+.search-pill input, .search-pill .v-select__selection-text {
+  color: #64748B !important; /* Grey text */
+}

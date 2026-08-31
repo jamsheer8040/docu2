@@ -20,9 +20,9 @@
         </v-btn-toggle>
       </v-col>
       <v-col cols="12" md="7" class="d-flex align-center justify-md-end" v-if="activeMainTab === 'insights'">
-        <div class="d-flex align-center flex-nowrap bg-white pa-1 rounded-lg border shadow-sm" style="gap: 8px; height: 48px;">
+        <div class="d-flex align-center flex-nowrap border rounded-pill bg-white pa-1 shadow-sm" style="gap: 8px; height: 48px;">
           <!-- Preset Selector -->
-          <div class="d-flex align-center px-2 border-e">
+          <div class="d-flex align-center px-4 border-e">
             <span class="text-caption font-weight-bold text-grey-darken-1 text-uppercase ls-1 mr-2 no-wrap">Period:</span>
             <v-select
               v-model="activePreset"
@@ -64,10 +64,8 @@
           </div>
 
           <v-btn
-            color="primary"
-            class="rounded-lg font-weight-bold px-4"
+            class="btn-standard rounded-lg font-weight-bold px-4"
             height="36"
-            flat
             @click="refreshData"
             :loading="reportStore.loading"
           >
@@ -82,7 +80,7 @@
         <!-- Summary Cards -->
         <v-row class="mb-8" align="stretch">
           <v-col cols="12" sm="6" md="3" v-for="(stat, key) in summaryCards" :key="key">
-            <v-card class="pa-6 rounded-2xl border h-100" variant="flat">
+            <v-card class="soft-card pa-6 h-100" variant="flat">
               <div class="d-flex align-center justify-space-between mb-4">
                 <v-avatar :color="stat.bgColor" rounded="lg" size="44" variant="flat">
                   <v-icon :icon="stat.icon" :color="stat.iconColor" size="24"></v-icon>
@@ -102,7 +100,7 @@
         <v-row class="mb-8">
           <!-- Monthly Trends -->
           <v-col cols="12" md="8">
-            <v-card class="pa-6 rounded-2xl border bg-surface" border variant="flat">
+            <v-card class="soft-card pa-6" variant="flat">
               <div class="d-flex align-center mb-6">
                   <v-icon icon="mdi-trending-up" color="primary" class="mr-2"></v-icon>
                   <div class="text-h6 font-weight-bold">Monthly Financial Trends</div>
@@ -120,7 +118,7 @@
 
           <!-- Revenue by Service -->
           <v-col cols="12" md="4">
-            <v-card class="pa-6 rounded-2xl border bg-surface" border variant="flat">
+            <v-card class="soft-card pa-6" variant="flat">
               <div class="d-flex align-center mb-6">
                   <v-icon icon="mdi-chart-donut" color="secondary" class="mr-2"></v-icon>
                   <div class="text-h6 font-weight-bold">Revenue Breakdown</div>
@@ -141,7 +139,7 @@
         <v-row>
             <!-- Top Customers -->
             <v-col cols="12" md="6">
-                <v-card class="rounded-2xl border bg-surface overflow-hidden" variant="flat">
+                <v-card class="soft-card overflow-hidden" variant="flat">
                     <v-toolbar color="surface" border-b flat class="px-6">
                         <span class="text-h6 font-weight-bold">Top Clients (Revenue)</span>
                     </v-toolbar>
@@ -173,7 +171,7 @@
 
             <!-- Expense by Category -->
             <v-col cols="12" md="6">
-                <v-card class="rounded-2xl border bg-surface overflow-hidden" variant="flat">
+                <v-card class="soft-card overflow-hidden" variant="flat">
                     <v-toolbar color="surface" border-b flat class="px-6">
                         <span class="text-h6 font-weight-bold">Spending by Category</span>
                     </v-toolbar>
@@ -205,7 +203,7 @@
 
     <!-- MORE REPORTS VIEW -->
     <div v-if="activeMainTab === 'reports'">
-      <v-card class="border rounded-2xl bg-surface" variant="flat">
+      <v-card class="soft-card" variant="flat">
         <!-- Sub Tabs for Reports -->
         <v-tabs
           v-model="activeReportTab"

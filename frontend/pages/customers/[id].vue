@@ -127,11 +127,14 @@
               v-if="availableStaffNames.length > 0 && categoryFilter.includes('Personal Document')"
               v-model="staffFilter"
               :items="availableStaffNames"
-              label="Filter by Staff Name"
-              variant="outlined"
-              density="compact"
+              placeholder="Filter by Staff Name"
+              prepend-inner-icon="mdi-filter-variant"
+              variant="solo"
+              density="comfortable"
+              flat
               clearable
               hide-details
+              class="search-pill"
               style="max-width: 300px; width: 100%;"
             ></v-autocomplete>
           </div>

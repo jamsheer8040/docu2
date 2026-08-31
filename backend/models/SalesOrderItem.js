@@ -33,6 +33,16 @@ const SalesOrderItem = sequelize.define('SalesOrderItem', {
     allowNull: false,
     defaultValue: 0.00
   },
+  cost: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false,
+    defaultValue: 0.00
+  },
+  service_charge: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false,
+    defaultValue: 0.00
+  },
   expected_processing_time: {
     type: DataTypes.STRING(100),
     allowNull: true
@@ -46,6 +56,22 @@ const SalesOrderItem = sequelize.define('SalesOrderItem', {
     type: DataTypes.ENUM('Not Started', 'Pending', 'In Progress', 'CompletedInvoicePending', 'CompletedInvoiceCreated', 'Cancelled'),
     defaultValue: 'Not Started',
     allowNull: false
+  },
+  confirmed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  confirm_notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  cancelled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  cancel_notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
   },
   service_order_id: {
     type: DataTypes.BIGINT,

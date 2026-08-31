@@ -8,13 +8,23 @@ export const useDashboardStore = defineStore('dashboard', {
       expiring_soon: 0,
       critical_count: 0,
       monthly_revenue: 0,
+      monthly_receivable: 0,
       monthly_cost: 0,
       monthly_profit: 0,
-      active_service_orders: 0
+      active_service_orders: 0,
+      service_overview: {
+        'Pending': 0,
+        'In Progress': 0,
+        'CompletedInvoicePending': 0,
+        'CompletedInvoiceCreated': 0,
+        'Cancelled': 0
+      },
+      wallet_balances: []
     },
     recentActivity: {
       recent_invoices: [],
-      expiring_documents: []
+      expiring_documents: [],
+      recent_services: []
     },
     loading: false,
     error: null

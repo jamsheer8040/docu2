@@ -113,7 +113,7 @@ exports.createExpense = async (req, res) => {
             payment_date: status === 'Paid' ? (payment_date || new Date()) : null,
             account_id,
             notes,
-            tenant_id: req.user.tenant_id || 1
+            tenant_id: req.user.tenant_id
         }, { transaction });
 
         if (status === 'Paid') {
@@ -124,7 +124,8 @@ exports.createExpense = async (req, res) => {
                 amount,
                 reference_id: expense.id,
                 reference_type: 'Expense',
-                description: `Payment for: ${description}`
+                description: `Payment for: ${description}`,
+                tenant_id: req.user.tenant_id
             }, { transaction });
 
             // Update Wallet Balance
@@ -181,7 +182,7 @@ exports.updateExpense = async (req, res) => {
             } 
             // Generic Update
             else {
-                let updateData = { ...req.body };
+                const { id: eId, tenant_id: eTenant, ...updateData } = req.body;
                 await expense.update(updateData, { transaction });
             }
 
@@ -234,7 +235,8 @@ exports.markAsPaid = async (req, res) => {
         amount: paymentAmount,
         reference_id: expense.id,
         reference_type: 'Expense',
-        description: `Payment for: ${expense.description}`
+        description: `Payment for: ${expense.description}`,
+        tenant_id: req.user.tenant_id
     }, { transaction });
 
     // Update Wallet Balance

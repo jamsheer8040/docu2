@@ -1,5 +1,5 @@
 <template>
-  <v-app>
+  <v-app class="bg-dreamy-gradient">
     <!-- Navigation Drawer (Sidebar) -->
     <v-navigation-drawer
       v-model="drawer"
@@ -7,11 +7,11 @@
       :temporary="$vuetify.display.smAndDown"
       elevation="0"
       border="0"
-      width="280"
-      class="pa-4 bg-transparent"
+      width="250"
+      class="bg-transparent"
+      style="border-right: none !important;"
     >
-      <div class="floating-glass pa-4 h-100 d-flex flex-column">
-        <div class="pa-2 mb-6">
+      <div class="pa-4 h-100 d-flex flex-column bg-transparent">
           <div class="d-flex flex-column align-center text-center cursor-pointer" @click="navigateTo('/')">
             <div v-if="configStore.appLogo" class="mb-2 d-flex align-center justify-center p-2 rounded-xl" style="width: 100%; height: 80px; background: rgba(255,255,255,0.4);">
                <v-img 
@@ -25,8 +25,7 @@
               <v-icon icon="mdi-shield-crown" color="white" size="28"></v-icon>
             </v-avatar>
           </div>
-        </div>
-
+        
         <div class="flex-grow-1 overflow-y-auto pr-1" style="scrollbar-width: thin;">
 
         <v-list density="comfortable" nav class="pa-0 bg-transparent" @click="$vuetify.display.smAndDown ? (drawer = false) : null">
@@ -132,129 +131,110 @@
         </v-list>
         </div>
         
-        <div class="pa-4 text-center mt-auto border-t">
-            <div class="text-overline text-grey opacity-60" style="font-size: 0.6rem !important;">{{ configStore.appName }} v1.1.0</div>
+        <div class="mt-auto border-t pt-4">
+          <!-- All Companies (moved from top bar) -->
+          <div v-if="authStore.user?.role_type === 'CustomerPortal' && authStore.user?.LinkedCustomers?.length > 1" class="px-4 mb-4">
+            <v-select
+              v-model="authStore.activeCustomerFilter"
+              :items="authStore.user.LinkedCustomers"
+              item-title="name"
+              item-value="id"
+              label="All Companies"
+              multiple
+              chips
+              closable-chips
+              density="compact"
+              hide-details
+              variant="solo-filled"
+              rounded="lg"
+              flat
+              class="bg-transparent"
+              @update:modelValue="onCustomerFilterChange"
+            ></v-select>
+          </div>
+
+          <!-- Bottom Icons -->
+          <div class="d-flex align-center justify-center pb-4 px-2" style="gap: 16px;">
+            <!-- 1. Help Dialog -->
+            <v-btn icon="mdi-help-circle-outline" variant="text" size="small" @click="helpDialog = true"></v-btn>
+
+            <!-- 2. Notification Bell -->
+            <v-menu v-if="authStore.user?.role_type !== 'CustomerPortal'" width="350" location="bottom end" offset="10">
+              <template v-slot:activator="{ props }">
+                <v-btn icon size="small" v-bind="props">
+                  <v-badge :content="notificationCount" :model-value="notificationCount > 0" color="error" overlap>
+                      <v-icon icon="mdi-bell-outline"></v-icon>
+                  </v-badge>
+                </v-btn>
+              </template>
+              <v-card class="glass-card overflow-hidden">
+                <v-list lines="two" class="pa-0 bg-transparent">
+                  <v-list-subheader class="font-weight-bold d-flex align-center pa-4 text-primary">
+                      Notifications
+                      <v-spacer></v-spacer>
+                      <v-chip size="x-small" color="primary" variant="flat">{{ notificationCount }} New</v-chip>
+                  </v-list-subheader>
+                  <v-divider></v-divider>
+                  
+                  <template v-if="notifications.length > 0">
+                      <v-list-item v-for="(note, i) in notifications" :key="i" :to="'/documents'" class="py-3">
+                          <template v-slot:prepend>
+                              <v-avatar :color="note.color" size="40" variant="tonal">
+                                  <v-icon :icon="note.icon" size="22"></v-icon>
+                              </v-avatar>
+                          </template>
+                          <v-list-item-title class="text-subtitle-2 font-weight-bold">{{ note.title }}</v-list-item-title>
+                          <v-list-item-subtitle class="text-caption mt-1">{{ note.subtitle }}</v-list-item-subtitle>
+                      </v-list-item>
+                  </template>
+                  <v-list-item v-else class="pa-10 text-center opacity-30">
+                      <v-icon icon="mdi-bell-off-outline" size="48" class="mb-2"></v-icon>
+                      <div class="text-subtitle-2">No new alerts</div>
+                  </v-list-item>
+                  
+                  <v-divider></v-divider>
+                  <v-btn block variant="text" size="small" class="text-none py-5" to="/documents">View All Tracking</v-btn>
+                </v-list>
+              </v-card>
+            </v-menu>
+
+            <!-- 3. User Dropdown Menu -->
+            <v-menu width="260" location="bottom end" offset="10">
+              <template v-slot:activator="{ props }">
+                <v-avatar color="primary" variant="flat" size="36" class="cursor-pointer shadow-glow" v-bind="props">
+                    <v-icon icon="mdi-account" color="white" size="20"></v-icon>
+                </v-avatar>
+              </template>
+              <v-card class="glass-card overflow-hidden">
+                <v-list class="pa-0 bg-transparent">
+                  <v-list-item class="py-4 px-4 bg-primary text-white">
+                    <template v-slot:prepend>
+                      <v-avatar color="white" size="40">
+                        <v-icon icon="mdi-account" color="primary"></v-icon>
+                      </v-avatar>
+                    </template>
+                    <v-list-item-title class="font-weight-bold">{{ authStore.user?.email || 'Administrator' }}</v-list-item-title>
+                    <v-list-item-subtitle class="text-white opacity-80 mt-1">{{ authStore.user?.role || 'Admin' }}</v-list-item-subtitle>
+                  </v-list-item>
+                  
+                  <v-list-item to="/profile" prepend-icon="mdi-account-circle-outline" title="My Profile" class="py-3 font-weight-medium"></v-list-item>
+                  <v-list-item v-if="authStore.can('settings')" to="/settings" prepend-icon="mdi-cog-outline" title="System Settings" class="py-3 font-weight-medium"></v-list-item>
+                  
+                  <v-divider></v-divider>
+                  <v-list-item @click="logout" prepend-icon="mdi-logout" title="Logout" color="error" class="py-4 font-weight-bold text-error"></v-list-item>
+                </v-list>
+              </v-card>
+            </v-menu>
+          </div>
+          
+          <div class="text-center pb-2">
+              <div class="text-overline text-grey opacity-60" style="font-size: 0.6rem !important;">{{ configStore.appName }} v1.1.0</div>
+          </div>
         </div>
       </div>
     </v-navigation-drawer>
 
-    <!-- Top App Bar -->
-    <v-app-bar elevation="0" class="px-6 bg-transparent" height="75">
-      <div class="floating-glass w-100 h-100 d-flex align-center px-6">
-        <v-app-bar-nav-icon
-          variant="text"
-          @click.stop="drawer = !drawer"
-          class="hidden-md-and-up mr-2"
-        ></v-app-bar-nav-icon>
 
-        <!-- Search Bar Simulation (Matches Image) -->
-        <div class="hidden-sm-and-down mr-4" style="width: 250px;">
-          <v-text-field
-            placeholder="Search documents..."
-            prepend-inner-icon="mdi-magnify"
-            density="compact"
-            hide-details
-            variant="solo-filled"
-            rounded="lg"
-            flat
-            class="bg-transparent"
-          ></v-text-field>
-        </div>
-
-        <v-spacer></v-spacer>
-
-        <div v-if="authStore.user?.role_type === 'CustomerPortal' && authStore.user?.LinkedCustomers?.length > 1" class="mr-2 mr-md-4" style="min-width: 140px; max-width: 250px; flex: 1 1 auto;">
-          <v-select
-            v-model="authStore.activeCustomerFilter"
-            :items="authStore.user.LinkedCustomers"
-            item-title="name"
-            item-value="id"
-            label="All Companies"
-            multiple
-            chips
-            closable-chips
-            density="compact"
-            hide-details
-            variant="solo-filled"
-            rounded="lg"
-            flat
-            class="bg-transparent"
-            @update:modelValue="onCustomerFilterChange"
-          ></v-select>
-        </div>
-
-        <!-- 1. Help Dialog -->
-        <v-btn icon="mdi-help-circle-outline" variant="text" class="mr-1" @click="helpDialog = true"></v-btn>
-
-        <!-- 2. Notification Bell (hidden for CustomerPortal) -->
-        <v-menu v-if="authStore.user?.role_type !== 'CustomerPortal'" width="350" location="bottom end" offset="20">
-          <template v-slot:activator="{ props }">
-            <v-btn icon v-bind="props" class="mr-1">
-              <v-badge :content="notificationCount" :model-value="notificationCount > 0" color="error" overlap>
-                  <v-icon icon="mdi-bell-outline"></v-icon>
-              </v-badge>
-            </v-btn>
-          </template>
-          <v-card class="rounded-2xl glass-card overflow-hidden">
-            <v-list lines="two" class="pa-0 bg-transparent">
-              <v-list-subheader class="font-weight-bold d-flex align-center pa-4 text-primary">
-                  Notifications
-                  <v-spacer></v-spacer>
-                  <v-chip size="x-small" color="primary" variant="flat">{{ notificationCount }} New</v-chip>
-              </v-list-subheader>
-              <v-divider></v-divider>
-              
-              <template v-if="notifications.length > 0">
-                  <v-list-item v-for="(note, i) in notifications" :key="i" :to="'/documents'" class="py-3">
-                      <template v-slot:prepend>
-                          <v-avatar :color="note.color" size="40" variant="tonal">
-                              <v-icon :icon="note.icon" size="22"></v-icon>
-                          </v-avatar>
-                      </template>
-                      <v-list-item-title class="text-subtitle-2 font-weight-bold">{{ note.title }}</v-list-item-title>
-                      <v-list-item-subtitle class="text-caption mt-1">{{ note.subtitle }}</v-list-item-subtitle>
-                  </v-list-item>
-              </template>
-              <v-list-item v-else class="pa-10 text-center opacity-30">
-                  <v-icon icon="mdi-bell-off-outline" size="48" class="mb-2"></v-icon>
-                  <div class="text-subtitle-2">No new alerts</div>
-              </v-list-item>
-              
-              <v-divider></v-divider>
-              <v-btn block variant="text" size="small" class="text-none py-5" to="/documents">View All Tracking</v-btn>
-            </v-list>
-          </v-card>
-        </v-menu>
-
-        <!-- 3. User Dropdown Menu -->
-        <v-menu width="260" location="bottom end" offset="20">
-          <template v-slot:activator="{ props }">
-            <v-avatar color="primary" variant="flat" size="44" class="ml-2 cursor-pointer shadow-glow" v-bind="props">
-                <v-icon icon="mdi-account" color="white"></v-icon>
-            </v-avatar>
-          </template>
-          <v-card class="rounded-xl glass-card overflow-hidden">
-            <v-list class="pa-0 bg-transparent">
-              <v-list-item class="py-4 px-4 bg-primary text-white">
-                <template v-slot:prepend>
-                  <v-avatar color="white" size="40">
-                    <v-icon icon="mdi-account" color="primary"></v-icon>
-                  </v-avatar>
-                </template>
-                <v-list-item-title class="font-weight-bold">{{ authStore.user?.email || 'Administrator' }}</v-list-item-title>
-                <v-list-item-subtitle class="text-white opacity-80 mt-1">{{ authStore.user?.role || 'Admin' }}</v-list-item-subtitle>
-              </v-list-item>
-              
-              <v-list-item to="/profile" prepend-icon="mdi-account-circle-outline" title="My Profile" class="py-3 font-weight-medium"></v-list-item>
-              <v-list-item v-if="authStore.can('settings')" to="/settings" prepend-icon="mdi-cog-outline" title="System Settings" class="py-3 font-weight-medium"></v-list-item>
-              
-              <v-divider></v-divider>
-              <v-list-item @click="logout" prepend-icon="mdi-logout" title="Logout" color="error" class="py-4 font-weight-bold text-error"></v-list-item>
-            </v-list>
-          </v-card>
-        </v-menu>
-      </div>
-    </v-app-bar>
 
 
     <!-- Help Dialog -->

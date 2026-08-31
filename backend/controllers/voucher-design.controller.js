@@ -49,6 +49,7 @@ const parseAuditLogJsonFields = (log) => {
 exports.listTemplates = async (req, res) => {
   try {
     const templates = await VoucherDesign.findAll({
+      where: { tenant_id: req.user.tenant_id },
       order: [['voucher_type', 'ASC'], ['is_default', 'DESC'], ['name', 'ASC']]
     });
     res.json({ success: true, data: templates.map(parseTemplateJsonFields) });
@@ -63,7 +64,7 @@ exports.listTemplates = async (req, res) => {
  */
 exports.getTemplate = async (req, res) => {
   try {
-    const template = await VoucherDesign.findByPk(req.params.id);
+    const template = await VoucherDesign.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!template) {
       return res.status(404).json({ success: false, message: 'Template not found' });
     }
@@ -98,7 +99,7 @@ exports.createTemplate = async (req, res) => {
     const tenant_id = req.user.tenant_id || 1;
 
     // Check if this is the first template for this type - if so, make it default
-    const existingCount = await VoucherDesign.count({ where: { voucher_type } });
+    const existingCount = await VoucherDesign.count({ where: { voucher_type, tenant_id } });
     const is_default = existingCount === 0;
 
     const template = await VoucherDesign.create({
@@ -141,7 +142,7 @@ exports.createTemplate = async (req, res) => {
  */
 exports.updateTemplate = async (req, res) => {
   try {
-    const template = await VoucherDesign.findByPk(req.params.id);
+    const template = await VoucherDesign.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!template) {
       return res.status(404).json({ success: false, message: 'Template not found' });
     }
@@ -203,7 +204,7 @@ exports.updateTemplate = async (req, res) => {
  */
 exports.deleteTemplate = async (req, res) => {
   try {
-    const template = await VoucherDesign.findByPk(req.params.id);
+    const template = await VoucherDesign.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!template) {
       return res.status(404).json({ success: false, message: 'Template not found' });
     }
@@ -238,7 +239,7 @@ exports.deleteTemplate = async (req, res) => {
  */
 exports.setDefaultTemplate = async (req, res) => {
   try {
-    const template = await VoucherDesign.findByPk(req.params.id);
+    const template = await VoucherDesign.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!template) {
       return res.status(404).json({ success: false, message: 'Template not found' });
     }
@@ -246,7 +247,7 @@ exports.setDefaultTemplate = async (req, res) => {
     // Set all templates of this type to false
     await VoucherDesign.update(
       { is_default: false },
-      { where: { voucher_type: template.voucher_type } }
+      { where: { voucher_type: template.voucher_type, tenant_id: req.user.tenant_id } }
     );
 
     // Set this one to true
@@ -275,6 +276,7 @@ exports.setDefaultTemplate = async (req, res) => {
 exports.getAuditLogs = async (req, res) => {
   try {
     const logs = await VoucherDesignAuditLog.findAll({
+      where: { tenant_id: req.user.tenant_id },
       include: [
         { model: User, attributes: ['id', 'name', 'email'] }
       ],

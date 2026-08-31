@@ -10,7 +10,7 @@
         <p class="text-subtitle-1 text-grey-darken-1">Aggregate performance metrics grouped by individual services</p>
       </v-col>
       <v-col cols="12" md="6" class="text-md-right">
-        <v-btn color="primary" prepend-icon="mdi-download" @click="exportCSV" :loading="loading">
+        <v-btn color="primary" class="btn-3d" prepend-icon="mdi-download" @click="exportCSV" :loading="loading">
           Export to CSV
         </v-btn>
       </v-col>
@@ -23,24 +23,30 @@
           <v-text-field
             v-model="filters.from"
             type="date"
-            label="Date From"
-            variant="outlined"
+            placeholder="Date From"
+            prepend-inner-icon="mdi-calendar"
+            variant="solo"
+            flat
             density="comfortable"
             hide-details
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" md="4">
           <v-text-field
             v-model="filters.to"
             type="date"
-            label="Date To"
-            variant="outlined"
+            placeholder="Date To"
+            prepend-inner-icon="mdi-calendar"
+            variant="solo"
+            flat
             density="comfortable"
             hide-details
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" md="4" class="d-flex align-center">
-          <v-btn color="primary" variant="tonal" block height="48" @click="fetchData">Apply Filters</v-btn>
+          <v-btn color="primary" class="btn-3d" block height="48" @click="fetchData">Apply Filters</v-btn>
         </v-col>
       </v-row>
     </v-card>

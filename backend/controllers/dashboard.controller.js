@@ -1,11 +1,5 @@
 const { Op } = require('sequelize');
-const Customer = require('../models/Customer');
-const Document = require('../models/Document');
-const DocumentType = require('../models/DocumentType');
-const Invoice = require('../models/Invoice');
-const Expense = require('../models/Expense');
-const ServiceOrder = require('../models/ServiceOrder');
-const sequelize = require('../config/database');
+const { Customer, Document, DocumentType, Invoice, Expense, ServiceOrder, ServiceType, WalletAccount, sequelize } = require('../models');
 
 /**
  * Get Aggregated Dashboard Statistics
@@ -27,28 +21,38 @@ exports.getStats = async (req, res) => {
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
+    const tenantId = req.user.tenant_id;
     const { customer_id } = req.query;
-    const whereDoc = {};
-    const whereInvoice = { status: 'Paid', created_at: { [Op.between]: [startOfMonth, endOfMonth] } };
-    const whereExpense = { status: 'Paid', created_at: { [Op.between]: [startOfMonth, endOfMonth] } };
-    const whereService = { status: { [Op.in]: ['Pending', 'In Progress'] } };
+    
+    const whereDoc = { tenant_id: tenantId };
+    const whereInvoiceAll = { tenant_id: tenantId, created_at: { [Op.between]: [startOfMonth, endOfMonth] } };
+    const whereInvoicePaid = { tenant_id: tenantId, status: 'Paid', created_at: { [Op.between]: [startOfMonth, endOfMonth] } };
+    const whereExpense = { tenant_id: tenantId, status: 'Paid', created_at: { [Op.between]: [startOfMonth, endOfMonth] } };
+    const whereServiceAll = { tenant_id: tenantId };
+    const whereServiceActive = { tenant_id: tenantId, status: { [Op.in]: ['Pending', 'In Progress'] } };
 
     if (customer_id) {
       whereDoc.customer_id = customer_id;
-      whereInvoice.customer_id = customer_id;
-      whereService.customer_id = customer_id;
+      whereInvoiceAll.customer_id = customer_id;
+      whereInvoicePaid.customer_id = customer_id;
+      whereServiceAll.customer_id = customer_id;
+      whereServiceActive.customer_id = customer_id;
     }
 
     if (req.user?.Role?.type === 'CustomerPortal') {
       const userCustomerIds = req.user.LinkedCustomers?.map(c => c.id) || [];
       if (customer_id && !userCustomerIds.includes(parseInt(customer_id))) {
         whereDoc.customer_id = { [Op.in]: [] };
-        whereInvoice.customer_id = { [Op.in]: [] };
-        whereService.customer_id = { [Op.in]: [] };
+        whereInvoiceAll.customer_id = { [Op.in]: [] };
+        whereInvoicePaid.customer_id = { [Op.in]: [] };
+        whereServiceAll.customer_id = { [Op.in]: [] };
+        whereServiceActive.customer_id = { [Op.in]: [] };
       } else if (!customer_id) {
         whereDoc.customer_id = { [Op.in]: userCustomerIds };
-        whereInvoice.customer_id = { [Op.in]: userCustomerIds };
-        whereService.customer_id = { [Op.in]: userCustomerIds };
+        whereInvoiceAll.customer_id = { [Op.in]: userCustomerIds };
+        whereInvoicePaid.customer_id = { [Op.in]: userCustomerIds };
+        whereServiceAll.customer_id = { [Op.in]: userCustomerIds };
+        whereServiceActive.customer_id = { [Op.in]: userCustomerIds };
       }
     }
 
@@ -58,21 +62,50 @@ exports.getStats = async (req, res) => {
       activeDocuments,
       expiringSoon,
       criticalDocuments,
-      monthlyRevenue,
+      monthlyPaid,
+      monthlyReceivable,
       monthlyCost,
-      activeServiceOrders
+      activeServiceOrders,
+      serviceCounts,
+      wallets
     ] = await Promise.all([
-      Customer.count({ where: { is_active: true } }), // Note: CustomerPortal users usually shouldn't see total customers, but we'll leave it or set to LinkedCustomers length
+      Customer.count({ where: { tenant_id: tenantId, is_active: true } }),
       Document.count({ where: whereDoc }),
       Document.count({ where: { ...whereDoc, expiry_date: { [Op.between]: [new Date(), thirtyDaysFromNow] } } }),
       Document.count({ where: { ...whereDoc, expiry_date: { [Op.between]: [new Date(), sevenDaysFromNow] } } }),
-      Invoice.sum('total', { where: whereInvoice }),
+      Invoice.sum('total', { where: whereInvoicePaid }),
+      Invoice.sum('total', { where: whereInvoiceAll }),
       Expense.sum('amount', { where: whereExpense }),
-      ServiceOrder.count({ where: whereService })
+      ServiceOrder.count({ where: whereServiceActive }),
+      ServiceOrder.findAll({
+        where: whereServiceAll,
+        attributes: ['status', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+        group: ['status']
+      }),
+      WalletAccount.findAll({
+        where: { tenant_id: tenantId, is_active: true },
+        attributes: ['id', 'name', 'balance', 'currency']
+      })
     ]);
 
-    const revenue = parseFloat(monthlyRevenue || 0);
+    const revenuePaid = parseFloat(monthlyPaid || 0);
+    const revenueTotal = parseFloat(monthlyReceivable || 0);
     const cost = parseFloat(monthlyCost || 0);
+    
+    // Map service counts to a simple object
+    const serviceOverview = {
+      'Pending': 0,
+      'In Progress': 0,
+      'CompletedInvoicePending': 0,
+      'CompletedInvoiceCreated': 0,
+      'Cancelled': 0
+    };
+    serviceCounts.forEach(s => {
+      const status = s.get('status');
+      if (serviceOverview[status] !== undefined) {
+        serviceOverview[status] = parseInt(s.get('count') || 0);
+      }
+    });
 
     res.json({
       success: true,
@@ -81,10 +114,13 @@ exports.getStats = async (req, res) => {
         active_documents: activeDocuments,
         expiring_soon: expiringSoon,
         critical_count: criticalDocuments,
-        monthly_revenue: revenue,
+        monthly_revenue: revenuePaid,
+        monthly_receivable: revenueTotal,
         monthly_cost: cost,
-        monthly_profit: revenue - cost,
-        active_service_orders: activeServiceOrders
+        monthly_profit: revenuePaid - cost,
+        active_service_orders: activeServiceOrders,
+        service_overview: serviceOverview,
+        wallet_balances: wallets
       }
     });
   } catch (err) {
@@ -94,7 +130,7 @@ exports.getStats = async (req, res) => {
 };
 
 /**
- * Get Recent Activity (Invoices & Expiring Docs)
+ * Get Recent Activity (Invoices, Expiring Docs, Recent Services)
  */
 exports.getRecentActivity = async (req, res) => {
   try {
@@ -102,13 +138,17 @@ exports.getRecentActivity = async (req, res) => {
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
     thirtyDaysFromNow.setHours(23, 59, 59, 999);
 
+    const tenantId = req.user.tenant_id;
     const { customer_id } = req.query;
-    const whereInvoice = {};
-    const whereDoc = { expiry_date: { [Op.lte]: thirtyDaysFromNow } };
+    
+    const whereInvoice = { tenant_id: tenantId };
+    const whereDoc = { tenant_id: tenantId, expiry_date: { [Op.lte]: thirtyDaysFromNow } };
+    const whereService = { tenant_id: tenantId, status: { [Op.in]: ['Pending', 'In Progress'] } };
 
     if (customer_id) {
       whereInvoice.customer_id = customer_id;
       whereDoc.customer_id = customer_id;
+      whereService.customer_id = customer_id;
     }
 
     if (req.user?.Role?.type === 'CustomerPortal') {
@@ -116,13 +156,15 @@ exports.getRecentActivity = async (req, res) => {
       if (customer_id && !userCustomerIds.includes(parseInt(customer_id))) {
         whereInvoice.customer_id = { [Op.in]: [] };
         whereDoc.customer_id = { [Op.in]: [] };
+        whereService.customer_id = { [Op.in]: [] };
       } else if (!customer_id) {
         whereInvoice.customer_id = { [Op.in]: userCustomerIds };
         whereDoc.customer_id = { [Op.in]: userCustomerIds };
+        whereService.customer_id = { [Op.in]: userCustomerIds };
       }
     }
 
-    const [recentInvoices, expiringDocuments] = await Promise.all([
+    const [recentInvoices, expiringDocuments, recentServices] = await Promise.all([
       Invoice.findAll({
         limit: 5,
         where: whereInvoice,
@@ -135,6 +177,15 @@ exports.getRecentActivity = async (req, res) => {
         include: [
           { model: Customer, attributes: ['name', 'phone_whatsapp'] },
           { model: DocumentType, attributes: ['name'] }
+        ]
+      }),
+      ServiceOrder.findAll({
+        limit: 5,
+        where: whereService,
+        order: [['created_at', 'DESC']],
+        include: [
+          { model: Customer, attributes: ['name'] },
+          { model: ServiceType, attributes: ['name'] }
         ]
       })
     ]);
@@ -153,7 +204,8 @@ exports.getRecentActivity = async (req, res) => {
       success: true,
       data: {
         recent_invoices: recentInvoices,
-        expiring_documents: formattedExpiring
+        expiring_documents: formattedExpiring,
+        recent_services: recentServices
       }
     });
   } catch (err) {

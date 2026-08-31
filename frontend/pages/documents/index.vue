@@ -133,14 +133,13 @@
             <v-select
               v-model="urgencyFilter"
               :items="filterOptions"
-              label="Filter by Status"
+              placeholder="Filter by Status"
               prepend-inner-icon="mdi-filter-variant"
-              variant="outlined"
-              rounded="lg"
-              bg-color="white"
+              variant="solo"
+              flat
               hide-details
-              class="font-weight-bold"
-              density="compact"
+              class="search-pill font-weight-bold"
+              density="comfortable"
             >
               <template v-slot:item="{ props, item }">
                 <v-list-item v-bind="props">
@@ -157,13 +156,13 @@
           <v-col cols="12" sm="8" md="5">
             <v-text-field
               v-model="searchQuery"
-              label="Search in tracker..."
+              placeholder="Search in tracker..."
               prepend-inner-icon="mdi-magnify"
-              bg-color="white"
-              variant="outlined"
+              variant="solo"
+              flat
               hide-details
-              rounded="lg"
-              density="compact"
+              class="search-pill"
+              density="comfortable"
             ></v-text-field>
           </v-col>
           <v-col cols="12" md="4" class="d-flex justify-md-end">
@@ -358,24 +357,26 @@
             <v-select
                v-model="categoryFilter"
                :items="['All Categories', 'Company Document', 'Personal Document']"
-               label="Filter by Category"
-               variant="outlined"
-               rounded="lg"
-               bg-color="white"
+               placeholder="Filter by Category"
+               prepend-inner-icon="mdi-filter-variant"
+               variant="solo"
+               flat
                hide-details
-               density="compact"
+               class="search-pill"
+               density="comfortable"
             ></v-select>
           </v-col>
           <v-col cols="12" md="9" sm="12">
             <v-text-field
                v-model="allSearchQuery"
-               label="Search by doc number, staff name, document type, customer..."
+               placeholder="Search by doc number, staff name, document type, customer..."
                prepend-inner-icon="mdi-magnify"
-               bg-color="white"
-               variant="outlined"
+               variant="solo"
+               flat
                hide-details
-               rounded="lg"
-               density="compact"
+               clearable
+               class="search-pill"
+               density="comfortable"
             ></v-text-field>
           </v-col>
         </v-row>

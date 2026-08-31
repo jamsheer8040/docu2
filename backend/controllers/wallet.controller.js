@@ -9,15 +9,15 @@ const WalletTransaction = require('../models/WalletTransaction');
 exports.getAccounts = async (req, res) => {
   try {
     const accounts = await WalletAccount.findAll({
-      where: { is_active: true }
+      where: { is_active: true, tenant_id: req.user.tenant_id }
     });
 
     const accountsWithBalance = await Promise.all(accounts.map(async (account) => {
       const inSum = await WalletTransaction.sum('amount', {
-        where: { account_id: account.id, direction: 'In' }
+        where: { account_id: account.id, direction: 'In', tenant_id: req.user.tenant_id }
       }) || 0;
       const outSum = await WalletTransaction.sum('amount', {
-        where: { account_id: account.id, direction: 'Out' }
+        where: { account_id: account.id, direction: 'Out', tenant_id: req.user.tenant_id }
       }) || 0;
 
       return {
@@ -39,7 +39,7 @@ exports.getTransactions = async (req, res) => {
   const { account_id, type, date_from, date_to, page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
 
-  const where = {};
+  const where = { tenant_id: req.user.tenant_id };
   if (account_id) where.account_id = account_id;
   if (type) where.type = type;
   if (date_from || date_to) {
@@ -88,6 +88,13 @@ exports.transfer = async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
+    const fromAcc = await WalletAccount.findOne({ where: { id: from_account_id, tenant_id: req.user.tenant_id } });
+    const toAcc = await WalletAccount.findOne({ where: { id: to_account_id, tenant_id: req.user.tenant_id } });
+    if (!fromAcc || !toAcc) {
+      await t.rollback();
+      return res.status(403).json({ success: false, message: 'Invalid accounts.' });
+    }
+
     // 1. Verify source balance
     const inSum = await WalletTransaction.sum('amount', {
       where: { account_id: from_account_id, direction: 'In' },
@@ -110,7 +117,8 @@ exports.transfer = async (req, res) => {
       type: 'Transfer',
       direction: 'Out',
       amount,
-      description: `Transfer to ${to_account_id}: ${description || ''}`
+      description: `Transfer to ${to_account_id}: ${description || ''}`,
+      tenant_id: req.user.tenant_id
     }, { transaction: t });
 
     // Update from_account balance
@@ -126,7 +134,8 @@ exports.transfer = async (req, res) => {
       type: 'Transfer',
       direction: 'In',
       amount,
-      description: `Transfer from ${from_account_id}: ${description || ''}`
+      description: `Transfer from ${from_account_id}: ${description || ''}`,
+      tenant_id: req.user.tenant_id
     }, { transaction: t });
 
     // Update to_account balance
@@ -149,8 +158,8 @@ exports.transfer = async (req, res) => {
  */
 exports.getSummary = async (req, res) => {
   try {
-    const inTotal = await WalletTransaction.sum('amount', { where: { direction: 'In' } }) || 0;
-    const outTotal = await WalletTransaction.sum('amount', { where: { direction: 'Out' } }) || 0;
+    const inTotal = await WalletTransaction.sum('amount', { where: { direction: 'In', tenant_id: req.user.tenant_id } }) || 0;
+    const outTotal = await WalletTransaction.sum('amount', { where: { direction: 'Out', tenant_id: req.user.tenant_id } }) || 0;
 
     res.json({
       success: true,
@@ -172,7 +181,7 @@ exports.createAccount = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name is required' });
     }
     
-    const existing = await WalletAccount.findOne({ where: { name }, transaction: t });
+    const existing = await WalletAccount.findOne({ where: { name, tenant_id: req.user.tenant_id }, transaction: t });
     if (existing) {
       await t.rollback();
       return res.status(400).json({ success: false, message: 'Wallet name already exists' });
@@ -183,7 +192,7 @@ exports.createAccount = async (req, res) => {
       balance = parseFloat(opening_balance);
     }
 
-    const account = await WalletAccount.create({ name, description, balance }, { transaction: t });
+    const account = await WalletAccount.create({ name, description, balance, tenant_id: req.user.tenant_id }, { transaction: t });
     
     if (balance > 0) {
       await WalletTransaction.create({
@@ -191,7 +200,8 @@ exports.createAccount = async (req, res) => {
         type: 'Manual',
         direction: 'In',
         amount: balance,
-        description: 'Opening Balance'
+        description: 'Opening Balance',
+        tenant_id: req.user.tenant_id
       }, { transaction: t });
     }
 
@@ -209,11 +219,11 @@ exports.updateAccount = async (req, res) => {
     const { id } = req.params;
     const { name, description } = req.body;
     
-    const account = await WalletAccount.findByPk(id);
+    const account = await WalletAccount.findOne({ where: { id, tenant_id: req.user.tenant_id } });
     if (!account) return res.status(404).json({ success: false, message: 'Account not found' });
 
     if (name && name !== account.name) {
-      const existing = await WalletAccount.findOne({ where: { name } });
+      const existing = await WalletAccount.findOne({ where: { name, tenant_id: req.user.tenant_id } });
       if (existing) return res.status(400).json({ success: false, message: 'Wallet name already exists' });
     }
 

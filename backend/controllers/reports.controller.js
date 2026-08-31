@@ -369,6 +369,7 @@ exports.getBalanceSheet = async (req, res) => {
         // Duplicates: Group by customer_id, invoice_number, total, created_at (day) having count > 1
         // We'll do a simpler check: same customer, same total amount within a week, or exact same invoice number
         const duplicatesQuery = await Invoice.findAll({
+            where: dateWhere,
             attributes: ['invoice_number', 'customer_id', 'total', 'created_at', [fn('COUNT', col('id')), 'count']],
             group: ['invoice_number', 'customer_id', 'total', 'created_at'],
             having: literal('COUNT(id) > 1')

@@ -158,7 +158,8 @@ exports.updateShareholder = async (req, res) => {
       });
     }
 
-    await shareholder.update(data);
+    const { id: sId, tenant_id: sTenant, ...safePayload } = data;
+    await shareholder.update(safePayload);
     res.status(200).json({ success: true, data: shareholder });
   } catch (error) {
     console.error('updateShareholder Error:', error);
@@ -320,14 +321,14 @@ exports.payDividend = async (req, res) => {
     await distribution.update({ paid_amount: parseFloat(distribution.paid_amount) + parseFloat(amount) });
 
     // Update declaration status
-    const allDistributions = await DividendDistribution.findAll({ where: { declaration_id: distribution.declaration_id } });
+    const allDistributions = await DividendDistribution.findAll({ where: { declaration_id: distribution.declaration_id, tenant_id } });
     const totalAllocated = allDistributions.reduce((s, d) => s + parseFloat(d.allocated_amount), 0);
     const totalPaid = allDistributions.reduce((s, d) => s + parseFloat(d.paid_amount), 0);
     
     if (totalPaid >= totalAllocated) {
-      await DividendDeclaration.update({ status: 'Fully Paid' }, { where: { id: distribution.declaration_id } });
+      await DividendDeclaration.update({ status: 'Fully Paid' }, { where: { id: distribution.declaration_id, tenant_id } });
     } else {
-      await DividendDeclaration.update({ status: 'Partially Paid' }, { where: { id: distribution.declaration_id } });
+      await DividendDeclaration.update({ status: 'Partially Paid' }, { where: { id: distribution.declaration_id, tenant_id } });
     }
 
     // Wallet transaction

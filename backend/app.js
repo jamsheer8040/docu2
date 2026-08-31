@@ -42,6 +42,7 @@ const salesOrderRoutes = require('./routes/sales-order.routes');
 const managementRoutes = require('./routes/management.routes');
 const voucherDesignRoutes = require('./routes/voucher-design.routes');
 const leadRoutes = require('./routes/lead.routes');
+const emailRoutes = require('./routes/email.routes');
 
 // Sync Database in development
 sequelize.sync({ alter: true })
@@ -137,6 +138,93 @@ sequelize.sync({ alter: true })
       });
     }
     console.log('[System] Default configurations initialized.');
+
+    // Seed Default Email Templates
+    const { EmailTemplate } = require('./models');
+    const defaultTemplates = [
+      {
+        type: 'invoice_issued',
+        name: 'Invoice Issued',
+        subject: 'Invoice {{invoice_number}} from {{business_name}}',
+        body_html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px;">
+  <h2 style="color:#4f46e5;">Invoice {{invoice_number}}</h2>
+  <p>Dear {{customer_name}},</p>
+  <p>Please find your invoice details below:</p>
+  <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;">Invoice No.</td><td style="padding:8px;border:1px solid #e5e7eb;">{{invoice_number}}</td></tr>
+    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;">Total Amount</td><td style="padding:8px;border:1px solid #e5e7eb;">{{currency}} {{total}}</td></tr>
+    <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;">Due Date</td><td style="padding:8px;border:1px solid #e5e7eb;">{{due_date}}</td></tr>
+  </table>
+  <p>Please make payment before the due date. Thank you for your business.</p>
+  <p style="color:#6b7280;font-size:12px;margin-top:24px;">{{business_name}} | {{contact_email}}</p>
+</div>`
+      },
+      {
+        type: 'payment_received',
+        name: 'Payment Received',
+        subject: 'Payment Received - {{invoice_number}}',
+        body_html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px;">
+  <h2 style="color:#16a34a;">Payment Confirmed ✓</h2>
+  <p>Dear {{customer_name}},</p>
+  <p>We have received your payment of <strong>{{currency}} {{amount}}</strong> for invoice <strong>{{invoice_number}}</strong>. Thank you!</p>
+  <p style="color:#6b7280;font-size:12px;margin-top:24px;">{{business_name}} | {{contact_email}}</p>
+</div>`
+      },
+      {
+        type: 'document_reminder',
+        name: 'Document Expiry Reminder',
+        subject: 'Reminder: {{document_name}} expires in {{days_remaining}} days',
+        body_html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px;">
+  <h2 style="color:#d97706;">⚠️ Document Expiry Reminder</h2>
+  <p>Dear {{customer_name}},</p>
+  <p>This is a reminder that your document <strong>{{document_name}}</strong> is due to expire on <strong>{{expiry_date}}</strong> ({{days_remaining}} days remaining).</p>
+  <p>Please take the necessary steps to renew it before it expires to avoid any disruptions.</p>
+  <p>Contact us to start the renewal process.</p>
+  <p style="color:#6b7280;font-size:12px;margin-top:24px;">{{business_name}} | {{contact_email}}</p>
+</div>`
+      },
+      {
+        type: 'document_expired',
+        name: 'Document Expired',
+        subject: 'URGENT: {{document_name}} has expired',
+        body_html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #fecaca;border-radius:8px;">
+  <h2 style="color:#dc2626;">🚨 Document Expired</h2>
+  <p>Dear {{customer_name}},</p>
+  <p>Your document <strong>{{document_name}}</strong> expired on <strong>{{expiry_date}}</strong>. Please contact us immediately to arrange renewal.</p>
+  <p style="color:#6b7280;font-size:12px;margin-top:24px;">{{business_name}} | {{contact_email}}</p>
+</div>`
+      },
+      {
+        type: 'sales_order_confirmation',
+        name: 'Sales Order Confirmation',
+        subject: 'Sales Order {{order_number}} - Confirmation',
+        body_html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px;">
+  <h2 style="color:#4f46e5;">Sales Order Confirmation</h2>
+  <p>Dear {{customer_name}},</p>
+  <p>Your Sales Order <strong>{{order_number}}</strong> has been received and is being processed.</p>
+  <p>Our team will be in touch shortly with further updates.</p>
+  <p style="color:#6b7280;font-size:12px;margin-top:24px;">{{business_name}} | {{contact_email}}</p>
+</div>`
+      },
+      {
+        type: 'manual',
+        name: 'General Email',
+        subject: 'Message from {{business_name}}',
+        body_html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px;">
+  <p>Dear {{customer_name}},</p>
+  <p>{{message}}</p>
+  <p style="color:#6b7280;font-size:12px;margin-top:24px;">{{business_name}} | {{contact_email}}</p>
+</div>`
+      }
+    ];
+
+    for (const tmpl of defaultTemplates) {
+      await EmailTemplate.findOrCreate({
+        where: { type: tmpl.type, tenant_id: 1 },
+        defaults: { ...tmpl, tenant_id: 1 }
+      });
+    }
+    console.log('[System] Default email templates initialized.');
   })
   .catch(err => {
     console.error('[System] Startup FAILED:', err);
@@ -236,6 +324,7 @@ app.use('/api/v1/sales-orders', salesOrderRoutes);
 app.use('/api/v1/management', managementRoutes);
 app.use('/api/v1/voucher-designs', voucherDesignRoutes);
 app.use('/api/v1/leads', leadRoutes);
+app.use('/api/v1/email', emailRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -268,6 +357,9 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  // Start background cron jobs
+  const { startDocumentReminderCron } = require('./cron/documentReminder.cron');
+  startDocumentReminderCron();
 });
 
 module.exports = app;

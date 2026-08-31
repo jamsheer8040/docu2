@@ -1,75 +1,83 @@
 <template>
-  <v-container fluid fill-height class="login-container pa-0">
+  <v-container fluid fill-height class="login-container pa-0" style="font-family: 'Montserrat', sans-serif; background-color: #F8FAFC;">
     <v-row align="center" justify="center" class="fill-height ma-0">
-      <v-col cols="12" sm="10" md="8" lg="6" xl="4" class="d-flex justify-center">
-        <v-card class="pa-8 pb-10 rounded-2xl glass-card text-center w-100" max-width="480" variant="flat">
-          <div v-if="configStore.appLogo" class="mb-4 d-flex align-center justify-center mx-auto p-4 rounded-xl" style="width: 250px; height: 80px; background: rgba(255,255,255,0.4);">
+      <v-col cols="12" sm="10" md="8" lg="5" xl="3" class="d-flex justify-center">
+        <!-- Soft Card Container -->
+        <v-card class="pa-10 soft-login-card text-center w-100" max-width="440" variant="flat">
+          
+          <!-- Logo area (optional, kept minimal) -->
+          <div v-if="configStore.appLogo" class="mb-8 d-flex align-center justify-center mx-auto">
              <v-img 
                :src="configStore.appLogo" 
-               width="180"
-               height="90"
+               width="140"
+               height="60"
                contain
              ></v-img>
           </div>
-          <v-avatar v-else color="primary" size="80" variant="flat" rounded="lg" class="mb-6 shadow-glow">
-            <v-icon size="40" color="white">mdi-shield-check</v-icon>
-          </v-avatar>
-          
-          <h1 class="text-h4 font-weight-black text-gradient mb-1">Welcome Back</h1>
-          <p class="text-subtitle-1 text-secondary mb-6 font-weight-medium">Please sign in to continue</p>
+          <div v-else class="mb-10 mt-2">
+             <div style="width: 48px; height: 48px; border-radius: 16px; background: linear-gradient(135deg, #A855F7, #6366F1); display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);">
+                <v-icon size="24" color="white">mdi-shield-check-outline</v-icon>
+             </div>
+          </div>
 
-          <v-form @submit.prevent="handleLogin" class="text-left">
+          <v-form @submit.prevent="handleLogin" class="text-left mt-2">
+            
+            <!-- External Label for Email -->
+            <label class="text-caption font-weight-bold text-slate-700 mb-2 d-block ml-1">Email Address</label>
             <v-text-field
               v-model="state.email"
-              label="Email Address"
               prepend-inner-icon="mdi-email-outline"
               type="email"
               autocomplete="email"
               :error-messages="v$.email.$errors.map(e => e.$message)"
               @blur="v$.email.$touch"
-              class="mb-2"
+              class="soft-input mb-4"
+              variant="outlined"
+              density="comfortable"
+              placeholder="admin@example.com"
+              hide-details="auto"
             ></v-text-field>
 
+            <!-- External Label for Password -->
+            <label class="text-caption font-weight-bold text-slate-700 mb-2 d-block ml-1 mt-4">Password</label>
             <v-text-field
               v-model="state.password"
-              label="Password"
               prepend-inner-icon="mdi-lock-outline"
               type="password"
               autocomplete="current-password"
               :error-messages="v$.password.$errors.map(e => e.$message)"
               @blur="v$.password.$touch"
+              class="soft-input mb-8"
+              variant="outlined"
+              density="comfortable"
+              placeholder="••••••••"
+              hide-details="auto"
             ></v-text-field>
 
-            <div class="d-flex align-center justify-space-between mt-1 mb-8">
-              <v-checkbox label="Remember Me" hide-details density="compact" color="primary"></v-checkbox>
-              <v-btn variant="text" size="small" color="primary" class="font-weight-bold ml-4">Forgot Password?</v-btn>
-            </div>
-
+            <!-- Pill-shaped Glowing Button -->
             <v-btn
               type="submit"
-              color="primary"
               block
               size="x-large"
-              height="56"
-              class="font-weight-bold"
+              height="52"
+              class="soft-btn-primary font-weight-bold text-body-1"
               :loading="loading"
+              append-icon="mdi-arrow-right"
             >
-              Sign In
+              Sign in to Dashboard
             </v-btn>
           </v-form>
 
           <v-alert
             v-if="error"
             type="error"
-            class="mt-6 text-left"
+            class="mt-6 text-left rounded-xl"
+            variant="tonal"
             closable
           >
             {{ error }}
           </v-alert>
           
-          <div class="mt-8 text-caption text-secondary font-weight-medium">
-            &copy; 2026 {{ configStore.appName }}. All rights reserved.
-          </div>
         </v-card>
       </v-col>
     </v-row>
@@ -143,9 +151,62 @@ const handleLogin = async () => {
 .login-container {
   height: 100vh;
   overflow: hidden;
-  /* Background inherited from global body style */
 }
-.shadow-glow {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) !important;
+
+/* 1. Soft Card Background */
+.soft-login-card {
+  background-color: #FFFFFF !important;
+  border-radius: 24px !important;
+  border: 1px solid rgba(226, 232, 240, 0.4) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* 2. Soft Inputs (Whisper thin borders, muted text) */
+:deep(.soft-input .v-field) {
+  border-radius: 16px !important;
+  background-color: #F8FAFC !important;
+  transition: all 0.3s ease;
+}
+:deep(.soft-input .v-field__outline__start),
+:deep(.soft-input .v-field__outline__end),
+:deep(.soft-input .v-field__outline__notch) {
+  border-color: rgba(226, 232, 240, 0.8) !important;
+  border-width: 1px !important;
+}
+:deep(.soft-input .v-field--focused .v-field__outline__start),
+:deep(.soft-input .v-field--focused .v-field__outline__end),
+:deep(.soft-input .v-field--focused .v-field__outline__notch) {
+  border-color: #6366F1 !important;
+  border-width: 1.5px !important;
+}
+
+/* Muted Icons and Text */
+:deep(.soft-input .v-icon) {
+  color: #94A3B8 !important; /* Soft dusty grey */
+  opacity: 1 !important;
+}
+:deep(.soft-input input) {
+  color: #64748B !important;
+  font-weight: 500;
+}
+:deep(.soft-input input::placeholder) {
+  color: #CBD5E1 !important;
+  opacity: 1 !important;
+}
+
+/* 3. Pill-Shaped Glowing Button */
+.soft-btn-primary {
+  background: #2563EB !important; /* Standard modern blue from the image */
+  color: #FFFFFF !important;
+  border-radius: 999px !important;
+  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.45) !important; /* The wide, diffused glow */
+  text-transform: none !important;
+  letter-spacing: 0px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: none !important;
+}
+.soft-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px -5px rgba(37, 99, 235, 0.55) !important;
 }
 </style>

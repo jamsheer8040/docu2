@@ -1,6 +1,6 @@
 <template>
   <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" max-width="600" persistent>
-    <v-card class="rounded-xl glass-card">
+    <v-card class="soft-card">
       <v-card-title class="pa-6 border-b d-flex align-center justify-space-between bg-surface">
         <span class="text-h5 font-weight-black text-primary">{{ isEditing ? 'Edit Lead' : 'New Lead' }}</span>
         <v-btn icon="mdi-close" variant="text" @click="$emit('update:modelValue', false)"></v-btn>
@@ -11,15 +11,15 @@
 
           <!-- Customer Search Field with custom dropdown -->
           <div class="customer-search-wrapper mb-4" @keydown.down.prevent="highlightNext" @keydown.up.prevent="highlightPrev" @keydown.enter.prevent="selectHighlighted" @keydown.esc="isFocused = false">
+            <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Customer / Company Name *</label>
             <v-text-field
               ref="searchField"
               v-model="customerSearch"
-              label="Customer / Company Name *"
               :rules="[v => !!v || 'Company / Customer name is required']"
               variant="outlined"
               density="comfortable"
-              rounded="lg"
-              bg-color="surface"
+              class="soft-input"
+              bg-color="transparent"
               clearable
               autocomplete="off"
               :prepend-inner-icon="selectedCustomerId ? 'mdi-account-check' : 'mdi-domain'"
@@ -79,28 +79,26 @@
 
           <v-row>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Contact Person (Optional)</label>
               <v-text-field
                 v-model="formData.name"
-                label="Contact Person (Optional)"
                 variant="outlined"
                 density="comfortable"
-                rounded="lg"
-                class="mb-3"
-                bg-color="surface"
+                class="mb-3 soft-input"
+                bg-color="transparent"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Service Required (Optional)</label>
               <v-select
                 v-model="formData.service_id"
                 :items="servicesList"
                 item-title="name"
                 item-value="id"
-                label="Service Required (Optional)"
                 variant="outlined"
                 density="comfortable"
-                rounded="lg"
-                class="mb-3"
-                bg-color="surface"
+                class="mb-3 soft-input"
+                bg-color="transparent"
                 clearable
               ></v-select>
             </v-col>
@@ -108,74 +106,70 @@
 
           <v-row>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Email Address</label>
               <v-text-field
                 v-model="formData.email"
-                label="Email Address"
                 type="email"
                 variant="outlined"
                 density="comfortable"
-                rounded="lg"
-                class="mb-3"
-                bg-color="surface"
+                class="mb-3 soft-input"
+                bg-color="transparent"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Phone / WhatsApp *</label>
               <v-text-field
                 v-model="formData.phone"
-                label="Phone / WhatsApp *"
                 :rules="[v => !!v || 'Phone is required']"
                 variant="outlined"
                 density="comfortable"
-                rounded="lg"
-                class="mb-3"
-                bg-color="surface"
+                class="mb-3 soft-input"
+                bg-color="transparent"
               ></v-text-field>
             </v-col>
           </v-row>
 
           <v-row>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Lead Status</label>
               <v-select
                 v-model="formData.status"
                 :items="['New', 'Contacted', 'Qualified', 'Lost', 'Won']"
-                label="Lead Status"
                 variant="outlined"
                 density="comfortable"
-                rounded="lg"
-                class="mb-3"
-                bg-color="surface"
+                class="mb-3 soft-input"
+                bg-color="transparent"
               ></v-select>
             </v-col>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Lead Source</label>
               <v-select
                 v-model="formData.source"
                 :items="['Website', 'Referral', 'Social Media', 'Cold Call', 'Other']"
-                label="Lead Source"
                 variant="outlined"
                 density="comfortable"
-                rounded="lg"
-                class="mb-3"
-                bg-color="surface"
+                class="mb-3 soft-input"
+                bg-color="transparent"
               ></v-select>
             </v-col>
           </v-row>
 
+          <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Notes</label>
           <v-textarea
             v-model="formData.notes"
-            label="Notes"
             rows="3"
             variant="outlined"
             density="comfortable"
-            rounded="lg"
-            bg-color="surface"
+            class="soft-input"
+            bg-color="transparent"
           ></v-textarea>
         </v-form>
       </v-card-text>
 
       <v-card-actions class="pa-6 border-t bg-surface">
         <v-spacer></v-spacer>
-        <v-btn variant="text" color="secondary" size="large" rounded="lg" @click="$emit('update:modelValue', false)" class="mr-2">Cancel</v-btn>
-        <v-btn color="primary" size="large" rounded="lg" elevation="2" @click="save" :loading="saving" :disabled="!valid" class="px-6 font-weight-bold">
+        <v-btn variant="text" color="secondary" size="large" @click="$emit('update:modelValue', false)" class="mr-2">Cancel</v-btn>
+        <v-btn class="btn-standard px-6" size="large" @click="save" :loading="saving" :disabled="!valid">
           {{ isEditing ? 'Save Changes' : 'Create Lead' }}
         </v-btn>
       </v-card-actions>

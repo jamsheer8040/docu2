@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" max-width="1200" scrollable>
+  <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" width="97vw" max-width="1900px" height="97vh" scrollable>
     <v-card class="rounded-xl glass-card" v-if="order">
       <v-card-title class="pa-6 border-b d-flex align-center justify-space-between bg-surface">
         <div>
@@ -15,14 +15,19 @@
             rounded="lg"
             @click="downloadProforma"
             :loading="downloading"
+            size="small"
           >
-            Download Proforma Invoice
+            Proforma Invoice
           </v-btn>
-          <v-btn icon="mdi-close" variant="text" @click="$emit('update:modelValue', false)"></v-btn>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="$emit('update:modelValue', false)"></v-btn>
         </div>
+
       </v-card-title>
 
-      <v-card-text class="pa-6 bg-transparent" style="max-height: 80vh">
+      <v-card-text class="pa-6 bg-transparent" style="max-height: 100vh">
+        <v-row class="fill-height">
+          <!-- 75% Left Column: Details & Services -->
+          <v-col cols="12" md="9" class="pr-md-6" style="border-right: 1px solid rgba(0,0,0,0.1)">
         <!-- Header Info -->
         <v-row class="mb-6">
           <v-col cols="12" md="3">
@@ -55,10 +60,13 @@
           <thead>
             <tr>
               <th class="font-weight-bold">Service</th>
+              <th class="font-weight-bold">Description</th>
               <th class="font-weight-bold">Qty</th>
-              <th class="font-weight-bold">Price</th>
+              <th class="font-weight-bold">Cost</th>
+              <th class="font-weight-bold">Service Charge</th>
+              <th class="font-weight-bold">Total Price</th>
               <th class="font-weight-bold">Priority</th>
-              <th class="font-weight-bold">Expected Time</th>
+              <th class="font-weight-bold">Expected Date</th>
               <th class="font-weight-bold">Status</th>
               <th class="font-weight-bold text-end">Action</th>
             </tr>
@@ -67,14 +75,18 @@
             <tr v-for="item in order.SalesOrderItems" :key="item.id" class="align-center">
               <td class="py-3">
                 <div class="font-weight-bold">{{ item.service_name }}</div>
-                <div class="text-caption text-secondary">{{ item.description }}</div>
+              </td>
+              <td>
+                <div class="text-caption text-secondary">{{ item.description || '-' }}</div>
               </td>
               <td>{{ item.quantity }}</td>
-              <td>AED {{ item.estimated_price }}</td>
+              <td>AED {{ item.cost || 0 }}</td>
+              <td>AED {{ item.service_charge || 0 }}</td>
+              <td class="font-weight-bold">AED {{ item.estimated_price }}</td>
               <td>
                 <v-chip size="x-small" :color="getPriorityColor(item.priority)" class="font-weight-bold text-uppercase">{{ item.priority }}</v-chip>
               </td>
-              <td>{{ item.expected_processing_time || '-' }}</td>
+              <td>{{ formatDate(item.expected_date) || '-' }}</td>
               <td>
                 <v-chip size="small" :color="getStatusColor(item.status)" class="font-weight-bold">
                   {{ getStatusLabel(item.status) }}
@@ -89,20 +101,45 @@
                   </span>
                 </div>
               </td>
-              <td class="text-end">
-                <v-btn
-                  v-if="!item.service_order_id"
-                  color="primary"
-                  size="small"
-                  variant="flat"
-                  rounded="lg"
-                  class="font-weight-bold text-none"
-                  prepend-icon="mdi-send"
-                  @click="pushService(item)"
-                  :loading="pushing === item.id"
-                >
-                  Push to Service
-                </v-btn>
+              <td class="text-end" style="min-width: 200px;">
+                <template v-if="!item.service_order_id">
+                  <template v-if="!item.confirmed && !item.cancelled">
+                    <v-btn
+                      color="success"
+                      size="small"
+                      variant="tonal"
+                      class="mr-2 rounded-lg font-weight-bold"
+                      @click="openConfirmDialog(item, 'confirm')"
+                    >
+                      Confirm
+                    </v-btn>
+                    <v-btn
+                      color="error"
+                      size="small"
+                      variant="outlined"
+                      class="rounded-lg font-weight-bold"
+                      @click="openConfirmDialog(item, 'cancel')"
+                    >
+                      Cancel
+                    </v-btn>
+                  </template>
+                  <template v-else-if="item.cancelled">
+                    <v-chip color="error" size="small" class="font-weight-bold" variant="flat">Cancelled</v-chip>
+                  </template>
+                  <v-btn
+                    v-else
+                    color="primary"
+                    size="small"
+                    variant="flat"
+                    rounded="lg"
+                    class="font-weight-bold text-none"
+                    prepend-icon="mdi-send"
+                    @click="pushService(item)"
+                    :loading="pushing === item.id"
+                  >
+                    Push to Service
+                  </v-btn>
+                </template>
                 <v-btn
                   v-else
                   color="secondary"
@@ -122,6 +159,29 @@
             </tr>
           </tbody>
         </v-table>
+          </v-col>
+
+          <!-- 25% Right Column: Lifecycle Tracker -->
+          <v-col cols="12" md="3" class="pl-md-6 pt-6 pt-md-2">
+            <h3 class="text-h6 font-weight-bold mb-8 text-blue-grey-darken-3">Order Lifecycle</h3>
+            <v-timeline density="compact" align="start" truncate-line="both" side="end">
+              <v-timeline-item
+                v-for="(event, i) in lifecycleEvents"
+                :key="i"
+                :dot-color="event.color"
+                :icon="event.icon"
+                size="small"
+                fill-dot
+              >
+                <div class="font-weight-bold text-blue-grey-darken-4">{{ event.title }}</div>
+                <div class="text-caption text-secondary mt-1">{{ event.subtitle }}</div>
+                <div v-if="event.date" class="text-caption text-primary font-weight-black mt-2">
+                  {{ event.date }}
+                </div>
+              </v-timeline-item>
+            </v-timeline>
+          </v-col>
+        </v-row>
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -134,10 +194,41 @@
       @close="invoiceDetailVisible = false"
     />
   </v-dialog>
+
+  <!-- Confirmation Dialog -->
+  <v-dialog v-model="confirmDialogVisible" max-width="500px">
+    <v-card class="rounded-xl glass-card">
+      <v-card-title class="pa-6 border-b font-weight-bold text-h6">
+        {{ confirmAction === 'confirm' ? 'Confirm Service' : 'Cancel Service' }}
+      </v-card-title>
+      <v-card-text class="pa-6">
+        <div class="mb-4">Are you sure you want to {{ confirmAction }} this service?</div>
+        <v-textarea
+          v-model="confirmNotes"
+          label="Notes (Optional)"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          class="soft-input"
+          rows="3"
+        ></v-textarea>
+      </v-card-text>
+      <v-card-actions class="pa-6 pt-0 justify-end">
+        <v-btn variant="text" class="text-none font-weight-bold" @click="confirmDialogVisible = false">Go Back</v-btn>
+        <v-btn
+          :color="confirmAction === 'confirm' ? 'success' : 'error'"
+          class="btn-3d px-6 text-none"
+          @click="submitConfirmation"
+        >
+          Yes, {{ confirmAction }}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useNuxtApp } from '#app'
 import { useRouter } from 'vue-router'
 import { useUIStore } from '~/stores/ui'
@@ -158,6 +249,29 @@ const pushing = ref(null)
 const downloading = ref(false)
 const invoiceDetailVisible = ref(false)
 const selectedInvoiceId = ref(null)
+
+const confirmDialogVisible = ref(false)
+const confirmAction = ref('confirm')
+const confirmItem = ref(null)
+const confirmNotes = ref('')
+
+const openConfirmDialog = (item, action) => {
+  confirmItem.value = item
+  confirmAction.value = action
+  confirmNotes.value = ''
+  confirmDialogVisible.value = true
+}
+
+const submitConfirmation = () => {
+  if (confirmAction.value === 'confirm') {
+    confirmItem.value.confirmed = true
+    confirmItem.value.confirm_notes = confirmNotes.value
+  } else {
+    confirmItem.value.cancelled = true
+    confirmItem.value.cancel_notes = confirmNotes.value
+  }
+  confirmDialogVisible.value = false
+}
 
 const downloadProforma = async () => {
   if (!props.order?.id) return
@@ -189,6 +303,97 @@ const formatDate = (dateString) => {
   if (!dateString) return ''
   return new Date(dateString).toLocaleDateString()
 }
+
+const lifecycleEvents = computed(() => {
+  if (!props.order) return []
+  const items = props.order.SalesOrderItems || []
+  const total = items.length
+  if (total === 0) {
+    return [
+      { title: 'Draft Created', subtitle: 'Order created with no services', color: 'primary', icon: 'mdi-file-document-outline', date: formatDate(props.order.order_date) }
+    ]
+  }
+
+  const confirmedCount = items.filter(i => i.confirmed).length
+  const cancelledCount = items.filter(i => i.cancelled).length
+  const dispatchedCount = items.filter(i => i.service_order_id).length
+  const invoicedCount = items.filter(i => i.invoice).length
+  const completedCount = items.filter(i => i.status === 'CompletedInvoiceCreated' || i.status === 'CompletedInvoicePending').length
+
+  const events = []
+  
+  // 1. Order Creation
+  events.push({
+    title: 'Order Drafted',
+    subtitle: `${total} services requested`,
+    color: 'primary',
+    icon: 'mdi-file-document-edit-outline',
+    date: formatDate(props.order.order_date)
+  })
+
+  // 2. Customer Confirmation
+  if (confirmedCount > 0 || cancelledCount > 0) {
+    if (confirmedCount === total - cancelledCount && confirmedCount > 0) {
+      events.push({
+        title: 'Customer Confirmed',
+        subtitle: 'All active services confirmed',
+        color: 'success',
+        icon: 'mdi-check-all',
+        date: 'Done'
+      })
+    } else {
+      events.push({
+        title: 'Partial Confirmation',
+        subtitle: `${confirmedCount} confirmed, ${cancelledCount} cancelled`,
+        color: 'warning',
+        icon: 'mdi-check',
+        date: 'In Progress'
+      })
+    }
+  }
+
+  // 3. Dispatch to Execution
+  if (dispatchedCount > 0) {
+    events.push({
+      title: 'Dispatched to Execution',
+      subtitle: `${dispatchedCount}/${confirmedCount} services dispatched`,
+      color: dispatchedCount === confirmedCount ? 'success' : 'primary',
+      icon: 'mdi-truck-delivery-outline',
+      date: dispatchedCount === confirmedCount ? 'Done' : 'In Progress'
+    })
+  } else if (confirmedCount > 0) {
+    events.push({
+      title: 'Pending Dispatch',
+      subtitle: 'Awaiting push to execution team',
+      color: 'grey',
+      icon: 'mdi-clock-outline'
+    })
+  }
+
+  // 4. Execution / Completion
+  if (completedCount > 0) {
+    events.push({
+      title: 'Service Execution',
+      subtitle: `${completedCount}/${dispatchedCount} services completed`,
+      color: completedCount === dispatchedCount ? 'success' : 'primary',
+      icon: 'mdi-cog-outline',
+      date: completedCount === dispatchedCount ? 'Done' : 'In Progress'
+    })
+  }
+
+  // 5. Invoicing
+  if (invoicedCount > 0) {
+    events.push({
+      title: 'Invoicing',
+      subtitle: `${invoicedCount} invoices generated`,
+      color: 'success',
+      icon: 'mdi-receipt-text-outline',
+      date: 'Done'
+    })
+  }
+
+  return events
+})
 
 const getPriorityColor = (priority) => {
   const map = { Normal: 'info', Moderate: 'warning', Critical: 'error' }

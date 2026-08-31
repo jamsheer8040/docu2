@@ -32,8 +32,17 @@ exports.upload = multer({
 
 exports.getConfigs = async (req, res) => {
   try {
-    // Only fetch global configs (tenant_id IS NULL)
-    const configs = await SystemConfig.findAll({ where: { tenant_id: null } }) || [];
+    // Fetch global configs and tenant specific configs
+    const globalConfigs = await SystemConfig.findAll({ where: { tenant_id: null } }) || [];
+    const tenantConfigs = req.user?.tenant_id ? await SystemConfig.findAll({ where: { tenant_id: req.user.tenant_id } }) : [];
+    
+    // Merge them, giving precedence to tenant configs (tenant overrides global)
+    const configs = [...globalConfigs];
+    tenantConfigs.forEach(tc => {
+      const idx = configs.findIndex(c => c.key === tc.key);
+      if (idx > -1) configs[idx] = tc;
+      else configs.push(tc);
+    });
     const configMap = {};
     configs.forEach(c => {
       try {
@@ -75,10 +84,11 @@ exports.uploadLogo = async (req, res) => {
 
     const logoUrl = `/uploads/branding/${req.file.filename}`;
     
-    // Auto-update config
+    // Auto-update config for this tenant
     await SystemConfig.upsert({
       key: 'app_logo',
-      value: logoUrl
+      value: logoUrl,
+      tenant_id: req.user.tenant_id
     });
 
     res.json({ 

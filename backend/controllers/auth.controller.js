@@ -95,7 +95,8 @@ exports.register = async (req, res) => {
       name,
       email,
       password_hash: password,
-      role_id
+      role_id,
+      tenant_id: req.user.tenant_id
     });
 
     const populated = await User.findByPk(user.id, {

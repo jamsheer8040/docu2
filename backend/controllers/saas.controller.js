@@ -638,7 +638,16 @@ exports.getPromoCodes = async (req, res) => {
  */
 exports.createPromoCode = async (req, res) => {
   try {
-    const promoCode = await PromoCode.create(req.body);
+    const { code, discount_type, discount_value, valid_from, valid_until, max_uses, is_active } = req.body;
+    const promoCode = await PromoCode.create({
+      code,
+      discount_type,
+      discount_value,
+      valid_from: valid_from || null,
+      valid_until: valid_until || null,
+      max_uses: max_uses || null,
+      is_active: is_active !== undefined ? is_active : true
+    });
     res.status(201).json({ success: true, message: 'Promo code created.', data: promoCode });
   } catch (err) {
     if (err.name === 'SequelizeUniqueConstraintError') {

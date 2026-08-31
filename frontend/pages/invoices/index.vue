@@ -12,12 +12,9 @@
       <v-col cols="12" md="6" class="d-flex align-center justify-md-end flex-wrap" style="gap: 16px;">
         <v-btn
           v-if="auth.can('invoices', 'write')"
-          color="primary"
+          class="btn-standard"
           prepend-icon="mdi-plus"
-          rounded="lg"
-          elevation="2"
           height="48"
-          class="px-8 font-weight-bold"
           @click="openCreateDialog"
         >
           Create Invoice
@@ -28,13 +25,13 @@
     <!-- Filters & Stats Bar -->
     <v-row class="mb-6">
       <v-col cols="12" md="3">
-        <v-card class="pa-4 border" border variant="flat">
+        <v-card class="soft-card pa-4" variant="flat">
           <div class="text-caption text-uppercase font-weight-bold opacity-60 mb-1">Total Outstanding</div>
           <div class="text-h5 font-weight-bold text-error">AED {{ stats.outstanding.toFixed(2) }}</div>
         </v-card>
       </v-col>
       <v-col cols="12" md="3">
-        <v-card class="pa-4 border" border variant="flat">
+        <v-card class="soft-card pa-4" variant="flat">
           <div class="text-caption text-uppercase font-weight-bold opacity-60 mb-1">Received (Total)</div>
           <div class="text-h5 font-weight-bold text-success">AED {{ stats.received.toFixed(2) }}</div>
         </v-card>
@@ -44,21 +41,26 @@
            <v-col cols="6">
              <v-text-field
                 v-model="search"
-                label="Search Invoice # or Customer"
+                placeholder="Search Invoice # or Customer"
                 prepend-inner-icon="mdi-magnify"
                 hide-details
                 density="comfortable"
-                variant="outlined"
+                variant="solo"
+                flat
+                class="search-pill"
              ></v-text-field>
            </v-col>
            <v-col cols="6">
              <v-select
                 v-model="statusFilter"
                 :items="['All', 'Draft', 'Issued', 'Partially Paid', 'Paid', 'Cancelled']"
-                label="Status Filter"
+                placeholder="Status Filter"
+                prepend-inner-icon="mdi-filter-variant"
                 hide-details
                 density="comfortable"
-                variant="outlined"
+                variant="solo"
+                flat
+                class="search-pill"
              ></v-select>
            </v-col>
          </v-row>
@@ -66,7 +68,7 @@
     </v-row>
 
     <!-- Invoices Table -->
-    <v-card class="border" border>
+    <v-card class="soft-card overflow-hidden" variant="flat">
       <v-data-table-server
         v-model:items-per-page="itemsPerPage"
         :headers="headers"
@@ -74,6 +76,7 @@
         :items-length="invoiceStore.totalInvoices"
         :loading="invoiceStore.loading"
         @update:options="loadInvoices"
+        class="bg-transparent elevation-0"
         hover
       >
         <!-- Invoice Number -->
@@ -178,7 +181,7 @@
     </v-dialog>
 
     <v-dialog v-model="payDialog" max-width="450px" persistent>
-        <v-card class="pa-4 rounded-xl">
+        <v-card class="soft-card pa-4">
             <v-card-title class="text-h6 font-weight-bold d-flex align-center">
                 <v-icon icon="mdi-cash-register" class="mr-2" color="success"></v-icon>
                 Collect Payment
@@ -205,7 +208,8 @@
                     density="comfortable"
                     type="number"
                     hide-details
-                    class="mb-4"
+                    class="mb-4 soft-input"
+                    bg-color="transparent"
                 ></v-text-field>
 
                 <v-select
@@ -219,6 +223,8 @@
                     density="comfortable"
                     :loading="walletStore.loading"
                     hide-details
+                    class="soft-input"
+                    bg-color="transparent"
                 ></v-select>
             </v-card-text>
             <v-card-actions class="px-4 pb-4">

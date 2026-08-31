@@ -101,7 +101,7 @@ exports.createSalesOrder = async (req, res) => {
     } = req.body;
 
     // Generate SO Number
-    const count = await SalesOrder.count({ transaction });
+    const count = await SalesOrder.count({ where: { tenant_id: req.user.tenant_id }, transaction });
     const order_number = `SO-${new Date().getFullYear()}${(count + 1).toString().padStart(4, '0')}`;
 
     const salesOrder = await SalesOrder.create({
@@ -122,6 +122,8 @@ exports.createSalesOrder = async (req, res) => {
         service_name: item.service_name,
         description: item.description,
         quantity: item.quantity || 1,
+        cost: item.cost || 0.00,
+        service_charge: item.service_charge || 0.00,
         estimated_price: item.estimated_price || 0.00,
         expected_processing_time: item.expected_processing_time,
         priority: item.priority || 'Normal',
@@ -195,8 +197,21 @@ exports.pushService = async (req, res) => {
  */
 exports.deleteSalesOrder = async (req, res) => {
   try {
-    const salesOrder = await SalesOrder.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
+    const salesOrder = await SalesOrder.findOne({ 
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
+      include: [SalesOrderItem]
+    });
+    
     if (!salesOrder) return res.status(404).json({ success: false, message: 'Sales Order not found' });
+
+    // Validation: Check if any items have been pushed to execution
+    if (salesOrder.SalesOrderItems && salesOrder.SalesOrderItems.some(item => item.service_order_id)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete Sales Order because some services have already been pushed to execution.' 
+      });
+    }
+
     await salesOrder.destroy();
     res.json({ success: true, message: 'Sales Order deleted successfully' });
   } catch (error) {

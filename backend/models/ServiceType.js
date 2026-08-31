@@ -25,6 +25,11 @@ const ServiceType = sequelize.define('ServiceType', {
     allowNull: false,
     defaultValue: 0.00
   },
+  service_charge: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: false,
+    defaultValue: 0.00
+  },
   description: {
     type: DataTypes.TEXT,
     allowNull: true

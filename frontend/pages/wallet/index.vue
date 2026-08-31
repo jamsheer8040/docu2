@@ -114,11 +114,11 @@
             v-model="search"
             prepend-inner-icon="mdi-magnify"
             placeholder="Search transactions..."
-            variant="solo-filled"
-            density="compact"
+            variant="solo"
+            density="comfortable"
             flat
             hide-details
-            class="max-width-300 rounded-pill ledger-search"
+            class="search-pill max-width-300"
           ></v-text-field>
       </v-toolbar>
 

@@ -1,5 +1,5 @@
 <template>
-  <v-card>
+  <v-card class="soft-card">
     <v-card-title class="pa-6 d-flex align-center">
       <div class="text-h6 font-weight-bold">
         <v-icon :icon="order ? 'mdi-pencil' : 'mdi-clipboard-plus-outline'" class="mr-2" color="primary"></v-icon>
@@ -12,17 +12,20 @@
     <v-card-text class="pt-0">
       <v-form @submit.prevent="submit">
         <!-- Customer Selection -->
+        <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Select Customer *</label>
         <v-autocomplete
           v-model="state.customer_id"
           :items="customers"
           item-title="name"
           item-value="id"
-          label="Select Customer *"
           placeholder="Search by name"
           :loading="loadingCustomers"
           :error-messages="v$.customer_id.$errors.map(e => e.$message)"
           @blur="v$.customer_id.$touch()"
-          class="mb-2"
+          class="mb-2 soft-input"
+          bg-color="transparent"
+          variant="outlined"
+          density="comfortable"
         >
           <template v-slot:item="{ props, item }">
             <v-list-item v-bind="props" :subtitle="item.raw.phone_whatsapp"></v-list-item>
@@ -30,16 +33,19 @@
         </v-autocomplete>
 
         <!-- Service Type Selection -->
+        <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Select Service *</label>
         <v-select
           v-model="state.service_type_id"
           :items="serviceTypes"
           item-title="name"
           item-value="id"
-          label="Select Service *"
           placeholder="Choose from catalog"
           :error-messages="v$.service_type_id.$errors.map(e => e.$message)"
           @blur="v$.service_type_id.$touch()"
-          class="mb-2"
+          class="mb-2 soft-input"
+          bg-color="transparent"
+          variant="outlined"
+          density="comfortable"
         >
           <template v-slot:item="{ props, item }">
             <v-list-item 
@@ -50,12 +56,15 @@
         </v-select>
 
         <!-- Criticality Selection -->
+        <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Criticality Level *</label>
         <v-select
           v-model="state.criticality"
           :items="['Normal', 'Moderate', 'Critical']"
-          label="Criticality Level *"
           placeholder="Select Criticality"
-          class="mb-2"
+          class="mb-2 soft-input"
+          bg-color="transparent"
+          variant="outlined"
+          density="comfortable"
         >
           <template v-slot:item="{ props, item }">
             <v-list-item v-bind="props">
@@ -80,13 +89,17 @@
         </v-select>
 
         <!-- Notes -->
+        <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Internal Notes / Assignee</label>
         <v-textarea
           v-model="state.notes"
-          label="Internal Notes / Assignee"
           rows="2"
           placeholder="Add details about this specific order..."
           :error-messages="v$.notes.$errors.map(e => e.$message)"
           @blur="v$.notes.$touch()"
+          class="soft-input"
+          bg-color="transparent"
+          variant="outlined"
+          density="comfortable"
         ></v-textarea>
 
         <!-- Profit Preview (Visual only) -->
@@ -117,9 +130,7 @@
       <v-spacer></v-spacer>
       <v-btn variant="text" color="grey-darken-1" @click="$emit('cancel')">Cancel</v-btn>
       <v-btn
-        color="primary"
-        variant="flat"
-        class="px-6"
+        class="btn-standard px-6"
         :loading="loading"
         @click="submit"
       >

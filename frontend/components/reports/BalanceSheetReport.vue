@@ -10,10 +10,10 @@
         <p class="text-subtitle-1 text-grey-darken-1">Cross-match financial records, ensure data integrity and track actual liquidity</p>
       </v-col>
       <v-col cols="12" md="6" class="text-md-right">
-        <v-btn color="primary" prepend-icon="mdi-refresh" @click="fetchData" :loading="loading" class="mr-4">
+        <v-btn color="primary" class="btn-3d mr-4" prepend-icon="mdi-refresh" @click="fetchData" :loading="loading">
           Refresh Data
         </v-btn>
-        <v-btn color="secondary" prepend-icon="mdi-printer" @click="printReport" :loading="loading">
+        <v-btn color="secondary" class="btn-3d" prepend-icon="mdi-printer" @click="printReport" :loading="loading">
           Print
         </v-btn>
       </v-col>
@@ -26,24 +26,30 @@
           <v-text-field
             v-model="filters.from"
             type="date"
-            label="Date From"
-            variant="outlined"
+            placeholder="Date From"
+            prepend-inner-icon="mdi-calendar"
+            variant="solo"
+            flat
             density="comfortable"
             hide-details
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" md="3">
           <v-text-field
             v-model="filters.to"
             type="date"
-            label="Date To"
-            variant="outlined"
+            placeholder="Date To"
+            prepend-inner-icon="mdi-calendar"
+            variant="solo"
+            flat
             density="comfortable"
             hide-details
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" md="2">
-          <v-btn color="primary" variant="tonal" block height="48" @click="fetchData">Apply Filters</v-btn>
+          <v-btn color="primary" class="btn-3d" block height="48" @click="fetchData">Apply Filters</v-btn>
         </v-col>
       </v-row>
     </v-card>

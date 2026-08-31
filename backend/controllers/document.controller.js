@@ -39,7 +39,8 @@ exports.getDocuments = async (req, res) => {
   }
 
   if (expiry_status && expiry_status !== 'all') {
-    const config = await SystemConfig.findOne({ where: { key: 'document_stages' } });
+    let config = await SystemConfig.findOne({ where: { key: 'document_stages', tenant_id: req.user.tenant_id } });
+    if (!config) config = await SystemConfig.findOne({ where: { key: 'document_stages', tenant_id: null } });
     let stages = [
       { id: 'expired', title: 'Expired', minDays: null, maxDays: -1, color: 'error', icon: 'mdi-alert-circle' },
       { id: 'critical', title: 'Critical (0-7 Days)', minDays: 0, maxDays: 7, color: 'error-lighten-1', icon: 'mdi-clock-alert-outline' },
@@ -178,7 +179,8 @@ exports.getDocumentById = async (req, res) => {
  */
 exports.getExpiringDocuments = async (req, res) => {
   try {
-    const config = await SystemConfig.findOne({ where: { key: 'document_stages' } });
+    let config = await SystemConfig.findOne({ where: { key: 'document_stages', tenant_id: req.user.tenant_id } });
+    if (!config) config = await SystemConfig.findOne({ where: { key: 'document_stages', tenant_id: null } });
     let stages = [
       { id: 'expired', title: 'Expired', minDays: null, maxDays: -1, color: 'error', icon: 'mdi-alert-circle' },
       { id: 'critical', title: 'Critical (0-7 Days)', minDays: 0, maxDays: 7, color: 'error-lighten-1', icon: 'mdi-clock-alert-outline' },
@@ -325,7 +327,7 @@ exports.updateDocument = async (req, res) => {
       }
     }
 
-    const data = { ...req.body };
+    const { id: docId, tenant_id: dTenant, ...data } = req.body;
     if (req.user?.Role?.type === 'CustomerPortal') {
       const userCustomerIds = req.user.LinkedCustomers?.map(c => c.id) || [];
       if (data.customer_id && !userCustomerIds.includes(parseInt(data.customer_id))) {

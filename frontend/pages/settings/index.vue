@@ -10,36 +10,32 @@
       </v-col>
     </v-row>
 
-    <!-- Main Content Grid -->
-    <v-row>
-      <!-- Left Vertical Menu -->
-      <v-col cols="12" md="2" lg="2">
-        <v-card border flat class="rounded-xl pa-2 bg-white elevation-1">
-          <v-list density="comfortable" nav class="pa-0">
-            <v-list-item
-              v-for="tab in tabs"
-              :key="tab.value"
-              :value="tab.value"
-              :prepend-icon="tab.icon"
-              :active="activeTab === tab.value"
-              @click="activeTab = tab.value"
-              class="rounded-lg mb-1 font-weight-bold text-slate-700"
-              color="primary"
-            >
-              <v-list-item-title>{{ tab.title }}</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </v-col>
-
-      <!-- Right Settings Content Panel -->
-      <v-col cols="12" md="10" lg="10" class="pt-0 pt-md-3">
+    <!-- Horizontal Tab Bar -->
+    <v-card class="soft-card mb-6 overflow-hidden" variant="flat">
+      <v-tabs
+        v-model="activeTab"
+        color="primary"
+        bg-color="transparent"
+        show-arrows
+        density="comfortable"
+      >
+        <v-tab
+          v-for="tab in tabs"
+          :key="tab.value"
+          :value="tab.value"
+          :prepend-icon="tab.icon"
+          class="font-weight-bold text-capitalize"
+        >
+          {{ tab.title }}
+        </v-tab>
+      </v-tabs>
+    </v-card>
 
     <!-- Main Content -->
     <v-window v-model="activeTab">
       <!-- Service Catalog Management -->
       <v-window-item value="services">
-        <v-card class="border" border>
+        <v-card class="soft-card">
           <v-data-table-server
             v-model:items-per-page="itemsPerPageCatalog"
             :headers="catalogHeaders"
@@ -55,21 +51,20 @@
                 <v-spacer></v-spacer>
                 <v-text-field
                   v-model="searchCatalog"
-                  label="Search services..."
+                  placeholder="Search services..."
                   prepend-inner-icon="mdi-magnify"
-                  density="compact"
+                  density="comfortable"
                   hide-details
                   style="max-width: 300px;"
-                  variant="outlined"
-                  rounded="lg"
-                  class="bg-white mr-4"
+                  variant="solo"
+                  flat
+                  class="search-pill mr-4"
                 ></v-text-field>
                 <v-btn
                   v-if="auth.can('services', 'write')"
                   color="primary"
                   prepend-icon="mdi-plus"
-                  rounded="lg"
-                  variant="flat"
+                  class="btn-3d"
                   @click="openTypeForm()"
                 >
                   Add Service Type
@@ -124,7 +119,7 @@
 
       <!-- Document Types Management -->
       <v-window-item value="doc-types">
-        <v-card class="border" border>
+        <v-card class="soft-card">
           <v-data-table
             :headers="docTypeHeaders"
             :items="documentTypes"
@@ -158,7 +153,7 @@
 
       <!-- Users Management -->
       <v-window-item value="users">
-        <v-card class="border" border>
+        <v-card class="soft-card">
           <v-data-table
             :headers="userHeaders"
             :items="users"
@@ -213,7 +208,7 @@
       <v-window-item value="roles">
         <v-row>
            <v-col cols="12" md="4">
-              <v-card class="border h-100" border>
+              <v-card class="soft-card h-100">
                  <v-list lines="two">
                     <v-list-subheader class="font-weight-bold text-primary">AVAILABLE ROLES</v-list-subheader>
                     <v-list-item
@@ -266,7 +261,7 @@
            </v-col>
 
            <v-col cols="12" md="8">
-              <v-card v-if="selectedRole" class="border" border>
+              <v-card v-if="selectedRole" class="soft-card">
                  <v-toolbar color="transparent" flat class="px-4">
                     <v-toolbar-title>
                        <span class="text-grey">Permissions for:</span>
@@ -345,7 +340,7 @@
       <v-window-item value="general">
          <v-row>
             <v-col cols="12" md="8">
-               <v-card class="border pa-6" border>
+               <v-card class="soft-card pa-6">
                   <div class="d-flex align-center mb-6">
                      <v-avatar color="primary" variant="tonal" size="48" class="mr-4">
                         <v-icon icon="mdi-tune"></v-icon>
@@ -363,7 +358,7 @@
                              v-model="configs.business_name"
                              label="Business Name"
                              variant="outlined"
-                             rounded="lg"
+                             class="soft-input"
                              hint="Displayed on invoices and headers"
                              persistent-hint
                            ></v-text-field>
@@ -373,7 +368,7 @@
                              v-model="configs.base_currency"
                              label="Base Currency"
                              variant="outlined"
-                             rounded="lg"
+                             class="soft-input"
                              hint="Default currency for new invoices"
                              persistent-hint
                            ></v-text-field>
@@ -383,7 +378,7 @@
                              v-model="configs.contact_email"
                              label="Support Email"
                              variant="outlined"
-                             rounded="lg"
+                             class="soft-input"
                            ></v-text-field>
                         </v-col>
                      </v-row>
@@ -392,14 +387,12 @@
                      
                      <div class="d-flex justify-end">
                         <v-btn
+                          v-if="auth.can('settings', 'write')"
                           color="primary"
-                          variant="flat"
-                          rounded="lg"
-                          class="px-8"
+                          class="btn-3d px-8"
                           height="44"
                           type="submit"
                           :loading="savingConfigs"
-                          v-if="auth.can('settings', 'write')"
                         >
                            Save Configuration
                         </v-btn>
@@ -408,7 +401,7 @@
                </v-card>
             </v-col>
             <v-col cols="12" md="4">
-               <v-card class="border bg-blue-lighten-5 pa-6 rounded-2xl" border variant="flat">
+               <v-card class="soft-card pa-6 rounded-2xl" variant="flat">
                   <h4 class="text-subtitle-1 font-weight-bold mb-2">Pro Tip</h4>
                   <p class="text-body-2 opacity-70">
                      Changes to the **Business Name** will reflect immediately on all newly generated PDF invoices.
@@ -421,7 +414,7 @@
       <v-window-item value="subscription">
          <v-row>
             <v-col cols="12" md="8">
-               <v-card class="border pa-6" border>
+               <v-card class="soft-card pa-6">
                   <div class="d-flex align-center mb-6">
                      <v-avatar color="primary" variant="tonal" size="48" class="mr-4">
                         <v-icon icon="mdi-card-account-details-star-outline"></v-icon>
@@ -466,7 +459,7 @@
                </v-card>
             </v-col>
             <v-col cols="12" md="4">
-               <v-card class="border bg-blue-lighten-5 pa-6 rounded-2xl" border variant="flat">
+               <v-card class="soft-card pa-6 rounded-2xl" variant="flat">
                   <h4 class="text-subtitle-1 font-weight-bold mb-2">Billing Support</h4>
                   <p class="text-body-2 opacity-70 mb-4">
                      For plan upgrades or billing inquiries, please contact our support team.
@@ -479,7 +472,7 @@
 
       <!-- Taxes Management -->
       <v-window-item value="taxes">
-        <v-card class="border mb-4" border>
+        <v-card class="soft-card mb-4">
           <v-card-title class="font-weight-bold px-4 pt-4">Global Tax Configuration</v-card-title>
           <v-card-text>
             <v-row class="align-center mt-2">
@@ -507,7 +500,7 @@
           </v-card-text>
         </v-card>
 
-        <v-card class="border" border>
+        <v-card class="soft-card">
           <v-data-table
             :headers="taxHeaders"
             :items="taxes"
@@ -554,12 +547,10 @@
         <VoucherDesignSettings />
       </v-window-item>
     </v-window>
-  </v-col>
-</v-row>
 
     <!-- Dialog User -->
     <v-dialog v-model="userDialog" max-width="500">
-       <v-card v-if="userDialog" class="rounded-xl pa-4">
+       <v-card v-if="userDialog" class="soft-card pa-4">
           <v-card-title class="text-h5 font-weight-bold">
              {{ edittingUser ? 'Edit System User' : 'Register New User' }}
           </v-card-title>
@@ -623,7 +614,7 @@
 
     <!-- Dialog Role -->
     <v-dialog v-model="roleDialog" max-width="400">
-        <v-card v-if="roleDialog" class="rounded-xl pa-4">
+        <v-card v-if="roleDialog" class="soft-card pa-4">
            <v-card-title class="text-h5 font-weight-bold">
               {{ editingRole ? 'Edit System Role' : 'New System Role' }}
            </v-card-title>
@@ -673,7 +664,7 @@
 
     <!-- Dialog Document Type -->
     <v-dialog v-model="docTypeDialog" max-width="400">
-        <v-card class="rounded-xl pa-4">
+        <v-card class="soft-card pa-4">
            <v-card-title class="text-h5 font-weight-bold">{{ editingDocType ? 'Edit Document Type' : 'New Document Type' }}</v-card-title>
             <v-card-text class="mt-4">
               <v-text-field v-model="newDocTypeName" label="Type Name (e.g. Work Permit)" variant="outlined" rounded="lg" class="mb-4"></v-text-field>
@@ -699,7 +690,7 @@
     <!-- Snackbar -->
     <!-- Dialog Tax -->
     <v-dialog v-model="taxDialog" max-width="400">
-      <v-card class="rounded-xl pa-4">
+      <v-card class="soft-card pa-4">
         <v-card-title class="text-h5 font-weight-bold">
           {{ editingTax ? 'Edit Tax' : 'New Tax' }}
         </v-card-title>
@@ -739,6 +730,12 @@
     <v-snackbar v-model="snackbar" :color="snackbarColor" rounded="pill">
        {{ snackbarText }}
     </v-snackbar>
+
+    <!-- Email Settings & Templates -->
+    <template v-if="activeTab === 'email'">
+      <EmailSettings class="mb-6" />
+      <EmailTemplates />
+    </template>
   </v-container>
 </template>
 
@@ -748,6 +745,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useServiceStore } from '@/stores/services';
 import ServiceTypeForm from '@/components/services/ServiceTypeForm.vue';
 import VoucherDesignSettings from '@/components/settings/VoucherDesignSettings.vue';
+import EmailSettings from '@/components/email/EmailSettings.vue';
+import EmailTemplates from '@/components/email/EmailTemplates.vue';
 
 const { $api } = useNuxtApp();
 
@@ -761,7 +760,8 @@ const tabs = [
   { value: 'general', title: 'General', icon: 'mdi-tune' },
   { value: 'subscription', title: 'Subscription', icon: 'mdi-card-account-details-star-outline' },
   { value: 'taxes', title: 'Taxes', icon: 'mdi-cash-register' },
-  { value: 'voucher-design', title: 'Voucher Design', icon: 'mdi-pencil-ruler' }
+  { value: 'voucher-design', title: 'Voucher Design', icon: 'mdi-pencil-ruler' },
+  { value: 'email', title: 'Email', icon: 'mdi-email-cog' }
 ]
 const auth = useAuthStore();
 const serviceStore = useServiceStore();

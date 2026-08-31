@@ -2,7 +2,9 @@ const { Role, User } = require('../models');
 
 exports.getRoles = async (req, res) => {
   try {
-    const where = {};
+    const where = {
+      tenant_id: { [require('sequelize').Op.or]: [null, req.user.tenant_id] }
+    };
     if (req.user?.Role?.name !== 'Developer') {
       where.name = { [require('sequelize').Op.ne]: 'Developer' };
     }
@@ -15,6 +17,7 @@ exports.getRoles = async (req, res) => {
 
     // 2. Fetch User counts per role
     const userCounts = await User.findAll({
+        where: { tenant_id: req.user.tenant_id },
         attributes: [
             'role_id',
             [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count']
@@ -119,7 +122,7 @@ exports.createRole = async (req, res) => {
       };
     }
 
-    const role = await Role.create({ name, type, permissions: finalPerms });
+    const role = await Role.create({ name, type, permissions: finalPerms, tenant_id: req.user.tenant_id });
     res.status(201).json({ success: true, data: role });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error creating role.' });
@@ -133,7 +136,7 @@ exports.updateRole = async (req, res) => {
     
     console.log(`[Role Controller] Attempting update for Role ID: ${id}`);
     
-    const role = await Role.findByPk(id);
+    const role = await Role.findOne({ where: { id, tenant_id: req.user.tenant_id } });
     if (!role) {
       console.warn(`[Role Controller] Role ID: ${id} not found.`);
       return res.status(404).json({ success: false, message: 'Role not found.' });
@@ -173,7 +176,8 @@ exports.updateRole = async (req, res) => {
       role.changed('permissions', true);
     }
 
-    await role.update(updateData);
+    const { id: roleId, tenant_id, ...safePayload } = updateData;
+    await role.update(safePayload);
     console.log(`[Role Controller] Role ${role.name} updated successfully.`);
     res.json({ success: true, data: role });
   } catch (err) {
@@ -184,7 +188,7 @@ exports.updateRole = async (req, res) => {
 
 exports.deleteRole = async (req, res) => {
   try {
-    const role = await Role.findByPk(req.params.id);
+    const role = await Role.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!role) {
       return res.status(404).json({ success: false, message: 'Role not found.' });
     }
@@ -195,7 +199,7 @@ exports.deleteRole = async (req, res) => {
     }
 
     // CHECK FOR ASSIGNED USERS
-    const userCount = await User.count({ where: { role_id: role.id } });
+    const userCount = await User.count({ where: { role_id: role.id, tenant_id: req.user.tenant_id } });
     if (userCount > 0) {
         return res.status(400).json({ success: false, message: `Cannot delete role "${role.name}" because it has ${userCount} users assigned.` });
     }

@@ -11,7 +11,7 @@
         <v-row>
           <!-- Left Col: Profile Info -->
           <v-col cols="12" md="4">
-            <v-card class="rounded-2xl border pa-6 text-center h-100" variant="flat">
+            <v-card class="soft-card pa-6 text-center h-100" variant="flat">
               <v-avatar color="primary" variant="tonal" size="120" class="mb-4">
                 <v-icon icon="mdi-account" size="64"></v-icon>
               </v-avatar>
@@ -35,7 +35,7 @@
 
           <!-- Right Col: Tabs & Forms -->
           <v-col cols="12" md="8">
-            <v-card class="rounded-2xl border overflow-hidden" variant="flat">
+            <v-card class="soft-card overflow-hidden" variant="flat">
               <v-tabs v-model="activeTab" color="primary" border-b>
                 <v-tab value="profile" prepend-icon="mdi-account-details-outline">Profile Details</v-tab>
                 <v-tab value="security" prepend-icon="mdi-shield-lock-outline" id="security">Security</v-tab>
@@ -48,20 +48,22 @@
                   <v-form disabled>
                     <v-row>
                       <v-col cols="12" md="6">
+                        <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Full Name</label>
                         <v-text-field
-                          label="Full Name"
                           v-model="authStore.user.name"
                           variant="outlined"
-                          rounded="lg"
+                          class="soft-input"
+                          bg-color="transparent"
                           readonly
                         ></v-text-field>
                       </v-col>
                       <v-col cols="12" md="6">
+                        <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Email Address</label>
                         <v-text-field
-                          label="Email Address"
                           v-model="authStore.user.email"
                           variant="outlined"
-                          rounded="lg"
+                          class="soft-input"
+                          bg-color="transparent"
                           readonly
                         ></v-text-field>
                       </v-col>
@@ -84,41 +86,40 @@
                   <p class="text-caption text-grey mb-6">Ensure your account is using a long, random password to stay secure.</p>
                   
                   <v-form ref="passwordForm" v-model="valid" @submit.prevent="updatePassword">
+                    <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Current Password</label>
                     <v-text-field
-                      label="Current Password"
                       v-model="passwordData.current"
                       type="password"
                       variant="outlined"
-                      rounded="lg"
-                      class="mb-2"
+                      class="mb-2 soft-input"
+                      bg-color="transparent"
                       :rules="[v => !!v || 'Required']"
                     ></v-text-field>
+                    
+                    <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">New Password</label>
                     <v-text-field
-                      label="New Password"
                       v-model="passwordData.new"
                       type="password"
                       variant="outlined"
-                      rounded="lg"
-                      class="mb-2"
+                      class="mb-2 soft-input"
+                      bg-color="transparent"
                       :rules="[v => !!v || 'Required', v => v.length >= 6 || 'Min 6 characters']"
                     ></v-text-field>
+                    
+                    <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Confirm New Password</label>
                     <v-text-field
-                      label="Confirm New Password"
                       v-model="passwordData.confirm"
                       type="password"
                       variant="outlined"
-                      rounded="lg"
-                      class="mb-6"
+                      class="mb-6 soft-input"
+                      bg-color="transparent"
                       :rules="[v => v === passwordData.new || 'Passwords do not match']"
                     ></v-text-field>
                     
                     <v-btn
                       type="submit"
-                      color="primary"
-                      variant="flat"
-                      rounded="lg"
+                      class="btn-standard px-8 font-weight-bold"
                       height="48"
-                      class="px-8 font-weight-bold"
                       :loading="loading"
                     >
                       Update Password

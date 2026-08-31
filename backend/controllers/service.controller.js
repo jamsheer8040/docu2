@@ -10,7 +10,7 @@ exports.getServiceTypes = async (req, res, next) => {
     limit = Math.min(parseInt(limit), 100);
     const offset = (page - 1) * limit;
 
-    const where = {};
+    const where = { tenant_id: req.user.tenant_id };
     if (is_active !== undefined) where.is_active = is_active === 'true';
     if (search) where.name = { [Op.like]: `%${search}%` };
 
@@ -40,7 +40,7 @@ exports.createServiceType = async (req, res, next) => {
   const transaction = await sequelize.transaction();
   try {
     const { pricing, ...typeData } = req.body;
-    const type = await ServiceType.create(typeData, { transaction });
+    const type = await ServiceType.create({ ...typeData, tenant_id: req.user.tenant_id }, { transaction });
     
     if (pricing && Array.isArray(pricing)) {
       const pricingsToCreate = pricing.map(p => ({
@@ -62,13 +62,13 @@ exports.createServiceType = async (req, res, next) => {
 exports.updateServiceType = async (req, res, next) => {
   const transaction = await sequelize.transaction();
   try {
-    const type = await ServiceType.findByPk(req.params.id);
+    const type = await ServiceType.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!type) {
       await transaction.rollback();
       return res.status(404).json({ success: false, message: 'Service type not found' });
     }
 
-    const { pricing, ...typeData } = req.body;
+    const { pricing, id: pId, tenant_id, ...typeData } = req.body;
     await type.update(typeData, { transaction });
 
     if (pricing && Array.isArray(pricing)) {
@@ -91,7 +91,7 @@ exports.updateServiceType = async (req, res, next) => {
 
 exports.deleteServiceType = async (req, res, next) => {
   try {
-    const type = await ServiceType.findByPk(req.params.id);
+    const type = await ServiceType.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!type) return res.status(404).json({ success: false, message: 'Service type not found' });
 
     // Check if used in orders
@@ -119,7 +119,7 @@ exports.getServiceOrders = async (req, res, next) => {
     limit = Math.min(parseInt(limit), 200);
     const offset = (page - 1) * limit;
 
-    const where = {};
+    const where = { tenant_id: req.user.tenant_id };
     if (status) where.status = status;
     if (customer_id) where.customer_id = customer_id;
     if (criticality) where.criticality = criticality;
@@ -173,10 +173,12 @@ exports.createServiceOrder = async (req, res, next) => {
     const { criticality = 'Normal', ...rest } = req.body;
     const order = await ServiceOrder.create({
       ...rest,
+      tenant_id: req.user.tenant_id,
       criticality,
       initial_criticality: criticality
     });
-    const fullOrder = await ServiceOrder.findByPk(order.id, {
+    const fullOrder = await ServiceOrder.findOne({
+      where: { id: order.id, tenant_id: req.user.tenant_id },
       include: [
         { model: Customer, attributes: ['id', 'name', 'phone_whatsapp'] },
         { 
@@ -197,7 +199,8 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
   const transaction = await sequelize.transaction();
   try {
     const { status } = req.body;
-    const order = await ServiceOrder.findByPk(req.params.id, {
+    const order = await ServiceOrder.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
         { model: ServiceType, include: [{ model: ServiceTypePricing }] },
         Customer
@@ -279,7 +282,8 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
 
     await transaction.commit();
 
-    const updatedOrder = await ServiceOrder.findByPk(order.id, {
+    const updatedOrder = await ServiceOrder.findOne({
+      where: { id: order.id, tenant_id: req.user.tenant_id },
       include: [
         { model: Customer, attributes: ['id', 'name', 'phone_whatsapp'] },
         { 
@@ -312,7 +316,7 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
 
 exports.deleteServiceOrder = async (req, res, next) => {
   try {
-    const order = await ServiceOrder.findByPk(req.params.id);
+    const order = await ServiceOrder.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
     if (!['Pending', 'Cancelled'].includes(order.status)) {
@@ -331,7 +335,7 @@ exports.deleteServiceOrder = async (req, res, next) => {
 
 exports.updateServiceOrder = async (req, res, next) => {
   try {
-    const order = await ServiceOrder.findByPk(req.params.id);
+    const order = await ServiceOrder.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
     if (!['Pending', 'In Progress'].includes(order.status)) {
@@ -368,7 +372,8 @@ exports.updateServiceOrder = async (req, res, next) => {
 
     await order.update(updates);
 
-    const fullOrder = await ServiceOrder.findByPk(order.id, {
+    const fullOrder = await ServiceOrder.findOne({
+      where: { id: order.id, tenant_id: req.user.tenant_id },
       include: [
         { model: Customer, attributes: ['id', 'name', 'phone_whatsapp'] },
         { 
@@ -414,8 +419,10 @@ async function generateInvoiceNumber(transaction) {
 exports.runEscalation = async (req, res, next) => {
   try {
     const SystemConfig = require('../models/SystemConfig');
+    const tenantId = req.user?.tenant_id;
     const configs = await SystemConfig.findAll({
       where: {
+        tenant_id: tenantId || null,
         key: [
           'svc_escalation_normal_to_moderate_days',
           'svc_escalation_normal_to_critical_days',
@@ -432,7 +439,7 @@ exports.runEscalation = async (req, res, next) => {
 
     // Fetch all active orders
     const activeOrders = await ServiceOrder.findAll({
-      where: { status: { [Op.in]: ['Pending', 'In Progress'] } }
+      where: { tenant_id: tenantId, status: { [Op.in]: ['Pending', 'In Progress'] } }
     });
 
     let escalatedCount = 0;
@@ -475,6 +482,7 @@ exports.getCriticalityConfig = async (req, res, next) => {
     const SystemConfig = require('../models/SystemConfig');
     const configs = await SystemConfig.findAll({
       where: {
+        tenant_id: req.user?.tenant_id || null,
         key: [
           'svc_escalation_normal_to_moderate_days',
           'svc_escalation_normal_to_critical_days',
@@ -503,10 +511,11 @@ exports.saveCriticalityConfig = async (req, res, next) => {
     ];
     for (const key of keys) {
       if (req.body[key] !== undefined) {
-        await SystemConfig.update(
-          { value: String(parseInt(req.body[key])) },
-          { where: { key } }
-        );
+        await SystemConfig.upsert({ 
+          key, 
+          value: String(parseInt(req.body[key])),
+          tenant_id: req.user.tenant_id 
+        });
       }
     }
     res.json({ success: true, message: 'Criticality config saved' });
@@ -517,7 +526,7 @@ exports.saveCriticalityConfig = async (req, res, next) => {
 
 exports.incrementReminderCount = async (req, res, next) => {
   try {
-    const order = await ServiceOrder.findByPk(req.params.id);
+    const order = await ServiceOrder.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
     if (req.user?.Role?.type === 'CustomerPortal') {

@@ -1,6 +1,6 @@
 <template>
   <v-dialog v-model="show" max-width="600px" persistent>
-    <v-card>
+    <v-card class="soft-card">
       <v-card-title class="pa-6 d-flex align-center">
         <div class="text-h6 font-weight-bold">
           <v-icon icon="mdi-account-edit-outline" class="mr-2" color="primary"></v-icon>
@@ -13,77 +13,104 @@
         <v-form @submit.prevent="submit">
           <v-row>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Full Name *</label>
               <v-text-field
                 v-model="state.name"
-                label="Full Name *"
                 :error-messages="v$.name.$errors.map(e => e.$message)"
                 @blur="v$.name.$touch"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Email</label>
               <v-text-field
                 v-model="state.email"
-                label="Email"
                 :error-messages="v$.email.$errors.map(e => e.$message)"
                 @blur="v$.email.$touch"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Phone / WhatsApp *</label>
               <v-text-field
                 v-model="state.phone_whatsapp"
-                label="Phone / WhatsApp *"
                 hint="Format: +971501234567"
                 persistent-hint
                 :error-messages="v$.phone_whatsapp.$errors.map(e => e.$message)"
                 @blur="v$.phone_whatsapp.$touch"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Trade License No</label>
               <v-text-field
                 v-model="state.trade_license_no"
-                label="Trade License No"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="6">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">City</label>
               <v-text-field
                 v-model="state.city"
-                label="City"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="4">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Country</label>
               <v-text-field
                 v-model="state.country"
-                label="Country"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="4">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Pricing Category</label>
               <v-select
                 v-model="state.pricing_category"
                 :items="['Normal', 'Prime', 'Prime+']"
-                label="Pricing Category"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-select>
             </v-col>
             <v-col cols="12">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Address</label>
               <v-textarea
                 v-model="state.address"
-                label="Address"
                 rows="2"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-textarea>
             </v-col>
             <v-col cols="12">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Notes</label>
               <v-textarea
                 v-model="state.notes"
-                label="Notes"
                 rows="2"
                 variant="outlined"
+                class="soft-input"
+                bg-color="transparent"
+                density="comfortable"
               ></v-textarea>
             </v-col>
           </v-row>
@@ -93,9 +120,7 @@
         <v-spacer></v-spacer>
         <v-btn variant="text" color="grey-darken-1" @click="close">Cancel</v-btn>
         <v-btn
-          color="primary"
-          variant="flat"
-          class="px-6"
+          class="btn-standard px-6"
           @click="submit"
           :loading="loading"
           :disabled="v$.$invalid"

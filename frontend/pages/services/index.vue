@@ -55,12 +55,13 @@
             { title: 'Moderate Only 🟠', value: 'Moderate' },
             { title: 'Normal Only 🟢', value: 'Normal' }
           ]"
-          label="Filter Criticality"
-          density="compact"
+          placeholder="Filter Criticality"
+          density="comfortable"
           hide-details
           style="max-width: 200px;"
-          variant="outlined"
-          rounded="lg"
+          variant="solo"
+          flat
+          class="search-pill"
         ></v-select>
         <!-- Sort Control -->
         <v-select
@@ -69,22 +70,24 @@
             { title: 'Default Sort', value: 'default' },
             { title: 'Sort by Criticality', value: 'criticality' }
           ]"
-          label="Sort By"
-          density="compact"
+          placeholder="Sort By"
+          density="comfortable"
           hide-details
           style="max-width: 200px;"
-          variant="outlined"
-          rounded="lg"
+          variant="solo"
+          flat
+          class="search-pill"
         ></v-select>
         <v-text-field
           v-model="searchOrders"
-          label="Search orders..."
+          placeholder="Search orders..."
           prepend-inner-icon="mdi-magnify"
-          density="compact"
+          density="comfortable"
           hide-details
           style="max-width: 200px;"
-          variant="outlined"
-          rounded="lg"
+          variant="solo"
+          flat
+          class="search-pill"
         ></v-text-field>
         <v-btn icon="mdi-refresh" variant="text" @click="fetchData" :loading="serviceStore.loading"></v-btn>
       </div>

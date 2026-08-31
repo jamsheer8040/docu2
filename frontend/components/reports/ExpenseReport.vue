@@ -10,7 +10,7 @@
         <p class="text-subtitle-1 text-grey-darken-1">Detailed list of all company expenses</p>
       </v-col>
       <v-col cols="12" md="6" class="text-md-right">
-        <v-btn color="primary" prepend-icon="mdi-download" @click="exportCSV" :loading="loading">
+        <v-btn color="primary" class="btn-3d" prepend-icon="mdi-download" @click="exportCSV" :loading="loading">
           Export to CSV
         </v-btn>
       </v-col>
@@ -23,43 +23,55 @@
           <v-text-field
             v-model="filters.from"
             type="date"
-            label="Date From"
-            variant="outlined"
+            placeholder="Date From"
+            prepend-inner-icon="mdi-calendar"
+            variant="solo"
+            flat
             density="comfortable"
             hide-details
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" md="3">
           <v-text-field
             v-model="filters.to"
             type="date"
-            label="Date To"
-            variant="outlined"
+            placeholder="Date To"
+            prepend-inner-icon="mdi-calendar"
+            variant="solo"
+            flat
             density="comfortable"
             hide-details
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" md="2">
           <v-select
             v-model="filters.status"
             :items="['All', 'Paid', 'Unpaid', 'Partially Paid']"
-            label="Status"
-            variant="outlined"
+            placeholder="Status"
+            prepend-inner-icon="mdi-filter-variant"
+            variant="solo"
+            flat
             density="comfortable"
             hide-details
+            class="search-pill"
           ></v-select>
         </v-col>
         <v-col cols="12" md="2">
           <v-text-field
             v-model="filters.search"
-            label="Search Ref/Desc"
-            variant="outlined"
+            placeholder="Search Ref/Desc"
+            prepend-inner-icon="mdi-magnify"
+            variant="solo"
+            flat
             density="comfortable"
             hide-details
+            class="search-pill"
           ></v-text-field>
         </v-col>
         <v-col cols="12" md="2" class="d-flex align-center">
-          <v-btn color="primary" variant="tonal" block height="48" @click="fetchData">Apply Filters</v-btn>
+          <v-btn color="primary" class="btn-3d" block height="48" @click="fetchData">Apply Filters</v-btn>
         </v-col>
       </v-row>
     </v-card>
