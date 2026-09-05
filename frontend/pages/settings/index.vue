@@ -353,13 +353,34 @@
                   
                   <v-form v-model="configValid" @submit.prevent="saveConfigs">
                      <v-row>
+                        <v-col cols="12" md="12">
+                           <div class="mb-4">
+                              <label class="text-subtitle-2 font-weight-bold d-block mb-2">Company Logo</label>
+                              <div v-if="configs.app_logo" class="mb-4 px-2">
+                                <img :src="configs.app_logo" alt="Company Logo" style="max-height: 80px; object-fit: contain; mix-blend-mode: multiply;" />
+                              </div>
+                              <v-file-input
+                                v-model="logoFile"
+                                label="Upload New Logo"
+                                accept="image/*"
+                                variant="outlined"
+                                density="comfortable"
+                                class="soft-input"
+                                prepend-icon="mdi-camera"
+                                @change="handleLogoUpload"
+                                :loading="uploadingLogo"
+                                hint="Preferred size 200x200px"
+                                persistent-hint
+                              ></v-file-input>
+                           </div>
+                        </v-col>
                         <v-col cols="12" md="6">
                            <v-text-field
-                             v-model="configs.business_name"
-                             label="Business Name"
+                             v-model="configs.app_name"
+                             label="Company Name"
                              variant="outlined"
                              class="soft-input"
-                             hint="Displayed on invoices and headers"
+                             hint="Your company name"
                              persistent-hint
                            ></v-text-field>
                         </v-col>
@@ -373,13 +394,61 @@
                              persistent-hint
                            ></v-text-field>
                         </v-col>
+                        <v-col cols="12" md="12">
+                           <v-text-field
+                             v-model="configs.company_address"
+                             label="Company Address"
+                             variant="outlined"
+                             class="soft-input"
+                             hint="Used on invoices"
+                             persistent-hint
+                           ></v-text-field>
+                        </v-col>
                         <v-col cols="12" md="6">
                            <v-text-field
-                             v-model="configs.contact_email"
-                             label="Support Email"
+                             v-model="configs.company_phone"
+                             label="Company Phone"
                              variant="outlined"
                              class="soft-input"
                            ></v-text-field>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                           <v-text-field
+                             v-model="configs.company_email"
+                             label="Company Email"
+                             variant="outlined"
+                             class="soft-input"
+                           ></v-text-field>
+                        </v-col>
+                     </v-row>
+                     
+                     <v-divider class="my-6"></v-divider>
+
+                     <div class="d-flex align-center mb-6">
+                        <v-avatar color="primary" variant="tonal" size="48" class="mr-4">
+                           <v-icon icon="mdi-wallet-outline"></v-icon>
+                        </v-avatar>
+                        <div>
+                           <div class="text-h6 font-weight-bold">Wallet Management</div>
+                           <div class="text-caption text-grey">Configure when service costs are deducted from wallets</div>
+                        </div>
+                     </div>
+                     <v-row>
+                        <v-col cols="12" md="6">
+                           <v-select
+                             v-model="configs.wallet_deduction_point"
+                             :items="[
+                               { title: 'Deduct on Invoice Creation (Default)', value: 'invoice_creation' },
+                               { title: 'Deduct on Service Completion', value: 'service_completion' }
+                             ]"
+                             item-title="title"
+                             item-value="value"
+                             label="Cost Deduction Point"
+                             variant="outlined"
+                             class="soft-input"
+                             hint="When should we ask for a wallet to deduct service costs?"
+                             persistent-hint
+                           ></v-select>
                         </v-col>
                      </v-row>
                      
@@ -743,6 +812,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useServiceStore } from '@/stores/services';
+import { useConfigStore } from '@/stores/config';
 import ServiceTypeForm from '@/components/services/ServiceTypeForm.vue';
 import VoucherDesignSettings from '@/components/settings/VoucherDesignSettings.vue';
 import EmailSettings from '@/components/email/EmailSettings.vue';
@@ -765,6 +835,7 @@ const tabs = [
 ]
 const auth = useAuthStore();
 const serviceStore = useServiceStore();
+const configStore = useConfigStore();
 const loading = ref(false);
 const users = ref([]);
 const roles = ref([]);
@@ -794,10 +865,45 @@ const savingConfigs = ref(false);
 
 const configs = reactive({
     business_name: 'DocClear Management',
+    app_name: '',
+    app_logo: '',
+    company_address: '',
+    company_phone: '',
+    company_email: '',
     base_currency: 'AED',
     contact_email: 'support@docclear.com',
-    default_language: 'English'
+    default_language: 'English',
+    wallet_deduction_point: 'invoice_creation'
 });
+
+const logoFile = ref(null);
+const uploadingLogo = ref(false);
+
+const handleLogoUpload = async () => {
+    if (!logoFile.value) return;
+    
+    uploadingLogo.value = true;
+    const formData = new FormData();
+    formData.append('logo', logoFile.value);
+    
+    try {
+        const { data } = await $api.post('/config/upload-logo', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        if (data.success) {
+            configs.app_logo = data.url;
+            // Also notify configStore to update globally if needed
+            configStore.fetchSettings();
+            showNotify('Logo uploaded successfully', 'success');
+        }
+    } catch (err) {
+        showNotify(err.response?.data?.message || 'Logo upload failed', 'error');
+    } finally {
+        uploadingLogo.value = false;
+        logoFile.value = null; // reset input
+    }
+};
 
 // Service Catalog State
 const searchCatalog = ref('');
@@ -1108,6 +1214,7 @@ const saveConfigs = async () => {
     try {
         await $api.put('/config', configs);
         showNotify('System configuration updated.', 'success');
+        await configStore.fetchSettings(); // refresh globally
     } catch (err) {
         showNotify('Error saving configuration.', 'error');
     } finally {

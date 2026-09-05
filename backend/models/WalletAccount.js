@@ -11,6 +11,11 @@ const WalletAccount = sequelize.define('WalletAccount', {
     type: DataTypes.STRING(100),
     allowNull: false
   },
+  account_type: {
+    type: DataTypes.ENUM('Cash', 'Debit', 'Credit'),
+    allowNull: false,
+    defaultValue: 'Cash'
+  },
   currency: {
     type: DataTypes.STRING(10),
     allowNull: false,
@@ -29,6 +34,23 @@ const WalletAccount = sequelize.define('WalletAccount', {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false,
     defaultValue: 0.00
+  },
+  credit_limit: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true,
+    defaultValue: null
+  },
+  bill_day: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null,
+    validate: { min: 1, max: 31 }
+  },
+  due_day: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null,
+    validate: { min: 1, max: 31 }
   },
   tenant_id: {
     type: DataTypes.INTEGER,

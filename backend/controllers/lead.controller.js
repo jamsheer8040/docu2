@@ -89,6 +89,13 @@ exports.deleteLead = async (req, res) => {
     const lead = await Lead.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
+    if (lead.customer_id || lead.status === 'Won') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete a lead that has already been converted to a customer or marked as Won.' 
+      });
+    }
+
     await lead.destroy();
     res.status(200).json({ success: true, message: 'Lead deleted' });
   } catch (error) {

@@ -9,10 +9,9 @@
         <div>
           <v-btn
             color="primary"
-            variant="tonal"
             prepend-icon="mdi-download"
-            class="mr-4 text-none font-weight-bold"
-            rounded="lg"
+            class="mr-4 text-none font-weight-bold btn-3d"
+            rounded="xl"
             @click="downloadProforma"
             :loading="downloading"
             size="small"
@@ -26,8 +25,8 @@
 
       <v-card-text class="pa-6 bg-transparent" style="max-height: 100vh">
         <v-row class="fill-height">
-          <!-- 75% Left Column: Details & Services -->
-          <v-col cols="12" md="9" class="pr-md-6" style="border-right: 1px solid rgba(0,0,0,0.1)">
+          <!-- 80% Left Column: Details & Services -->
+          <v-col cols="12" class="col-md-80 pr-md-6" style="border-right: 1px solid rgba(0,0,0,0.1)">
         <!-- Header Info -->
         <v-row class="mb-6">
           <v-col cols="12" md="3">
@@ -161,8 +160,8 @@
         </v-table>
           </v-col>
 
-          <!-- 25% Right Column: Lifecycle Tracker -->
-          <v-col cols="12" md="3" class="pl-md-6 pt-6 pt-md-2">
+          <!-- 20% Right Column: Lifecycle Tracker -->
+          <v-col cols="12" class="col-md-20 pl-md-6 pt-6 pt-md-2">
             <h3 class="text-h6 font-weight-bold mb-8 text-blue-grey-darken-3">Order Lifecycle</h3>
             <v-timeline density="compact" align="start" truncate-line="both" side="end">
               <v-timeline-item
@@ -174,7 +173,31 @@
                 fill-dot
               >
                 <div class="font-weight-bold text-blue-grey-darken-4">{{ event.title }}</div>
-                <div class="text-caption text-secondary mt-1">{{ event.subtitle }}</div>
+                <div class="text-caption text-secondary mt-1">
+                  <v-icon v-if="event.isNote" size="12" class="mr-1">mdi-note-text-outline</v-icon>
+                  {{ event.subtitle }}
+                </div>
+                <div v-if="event.list && event.list.length" class="mt-3 pl-3" style="border-left: 2px solid rgba(var(--v-theme-primary), 0.15); margin-left: 10px;">
+                  <div v-for="(listItem, j) in event.list" :key="j" class="text-caption text-secondary d-flex align-center pb-3 position-relative" style="left: -11.5px;">
+                    <div class="bg-surface rounded-circle d-flex justify-center align-center mr-2" style="width: 21px; height: 21px; border: 2px solid rgb(var(--v-theme-surface)); box-shadow: 0 0 0 1px white;">
+                      <v-icon size="18" :color="listItem.done ? 'success' : 'grey-lighten-2'">
+                        {{ listItem.done ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                      </v-icon>
+                    </div>
+                    <span class="text-truncate" :class="{ 'font-weight-bold text-blue-grey-darken-3': listItem.done }">{{ listItem.label }}</span>
+                    <v-btn
+                      v-if="listItem.attachment"
+                      icon="mdi-paperclip"
+                      size="20"
+                      variant="text"
+                      color="primary"
+                      class="ml-1"
+                      @click="openAttachmentViewer(listItem.attachment)"
+                      title="View Attachment"
+                    ></v-btn>
+                    <span v-if="listItem.date" class="ml-auto ml-2 opacity-70">{{ listItem.date }}</span>
+                  </div>
+                </div>
                 <div v-if="event.date" class="text-caption text-primary font-weight-black mt-2">
                   {{ event.date }}
                 </div>
@@ -208,21 +231,65 @@
           label="Notes (Optional)"
           variant="outlined"
           density="comfortable"
-          hide-details
-          class="soft-input"
+          hide-details="auto"
+          class="soft-input mb-4"
           rows="3"
         ></v-textarea>
+        <v-file-input
+          v-if="confirmAction === 'confirm'"
+          v-model="confirmAttachment"
+          label="Attachment (Optional)"
+          variant="outlined"
+          density="comfortable"
+          hide-details="auto"
+          accept=".jpg,.jpeg,.png,.pdf,.webp"
+          prepend-icon=""
+          prepend-inner-icon="mdi-paperclip"
+          class="soft-input"
+        ></v-file-input>
       </v-card-text>
       <v-card-actions class="pa-6 pt-0 justify-end">
         <v-btn variant="text" class="text-none font-weight-bold" @click="confirmDialogVisible = false">Go Back</v-btn>
         <v-btn
           :color="confirmAction === 'confirm' ? 'success' : 'error'"
           class="btn-3d px-6 text-none"
+          :loading="submittingConfirm"
           @click="submitConfirmation"
         >
           Yes, {{ confirmAction }}
         </v-btn>
       </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Attachment Viewer Dialog -->
+  <v-dialog v-model="attachmentViewerVisible" max-width="900px" height="80vh">
+    <v-card class="rounded-xl glass-card fill-height">
+      <v-card-title class="pa-4 border-b d-flex align-center justify-space-between bg-surface">
+        <span class="font-weight-bold">Attachment Viewer</span>
+        <div class="d-flex align-center gap-2">
+          <v-btn icon="mdi-whatsapp" color="success" variant="text" size="small" @click="shareWhatsApp"></v-btn>
+          <v-btn icon="mdi-download" color="primary" variant="text" size="small" @click="downloadAttachment"></v-btn>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="attachmentViewerVisible = false"></v-btn>
+        </div>
+      </v-card-title>
+      <v-card-text class="pa-0 fill-height position-relative bg-grey-lighten-4 d-flex justify-center align-center">
+        <!-- Render PDF or Image based on extension -->
+        <template v-if="currentAttachmentUrl">
+          <iframe 
+            v-if="currentAttachmentUrl.toLowerCase().endsWith('.pdf')" 
+            :src="currentAttachmentUrl" 
+            width="100%" 
+            height="100%" 
+            style="border: none;">
+          </iframe>
+          <img 
+            v-else 
+            :src="currentAttachmentUrl" 
+            style="max-width: 100%; max-height: 100%; object-fit: contain;" 
+          />
+        </template>
+      </v-card-text>
     </v-card>
   </v-dialog>
 </template>
@@ -250,27 +317,82 @@ const downloading = ref(false)
 const invoiceDetailVisible = ref(false)
 const selectedInvoiceId = ref(null)
 
+const attachmentViewerVisible = ref(false)
+const currentAttachmentUrl = ref(null)
+
+const openAttachmentViewer = (url) => {
+  currentAttachmentUrl.value = url
+  attachmentViewerVisible.value = true
+}
+
+const getFullUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return window.location.origin + url
+}
+
+const downloadAttachment = () => {
+  if (!currentAttachmentUrl.value) return
+  const link = document.createElement('a')
+  link.href = currentAttachmentUrl.value
+  link.download = currentAttachmentUrl.value.split('/').pop() || 'attachment'
+  link.target = '_blank'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+const shareWhatsApp = () => {
+  if (!currentAttachmentUrl.value) return
+  const fullUrl = getFullUrl(currentAttachmentUrl.value)
+  const text = encodeURIComponent(`Please review this attachment: ${fullUrl}`)
+  window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank')
+}
+
 const confirmDialogVisible = ref(false)
 const confirmAction = ref('confirm')
 const confirmItem = ref(null)
 const confirmNotes = ref('')
+const confirmAttachment = ref(null)
+const submittingConfirm = ref(false)
 
 const openConfirmDialog = (item, action) => {
   confirmItem.value = item
   confirmAction.value = action
   confirmNotes.value = ''
+  confirmAttachment.value = null
   confirmDialogVisible.value = true
 }
 
-const submitConfirmation = () => {
-  if (confirmAction.value === 'confirm') {
-    confirmItem.value.confirmed = true
-    confirmItem.value.confirm_notes = confirmNotes.value
-  } else {
-    confirmItem.value.cancelled = true
-    confirmItem.value.cancel_notes = confirmNotes.value
+const submitConfirmation = async () => {
+  if (!confirmItem.value) return
+  submittingConfirm.value = true
+  try {
+    const formData = new FormData()
+    formData.append('action', confirmAction.value)
+    if (confirmNotes.value) {
+      formData.append('notes', confirmNotes.value)
+    }
+    if (confirmAction.value === 'confirm' && confirmAttachment.value) {
+      const file = Array.isArray(confirmAttachment.value) ? confirmAttachment.value[0] : confirmAttachment.value
+      if (file) {
+        formData.append('attachment', file)
+      }
+    }
+
+    const res = await $api.post(`/sales-orders/items/${confirmItem.value.id}/confirm`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    
+    uiStore.showSuccess(res.data.message)
+    emit('refresh')
+    confirmDialogVisible.value = false
+  } catch (err) {
+    console.error('Failed to confirm/cancel service', err)
+    uiStore.showError(err.response?.data?.message || 'Failed to submit action')
+  } finally {
+    submittingConfirm.value = false
   }
-  confirmDialogVisible.value = false
 }
 
 const downloadProforma = async () => {
@@ -316,7 +438,7 @@ const lifecycleEvents = computed(() => {
 
   const confirmedCount = items.filter(i => i.confirmed).length
   const cancelledCount = items.filter(i => i.cancelled).length
-  const dispatchedCount = items.filter(i => i.service_order_id).length
+  const inProgressCount = items.filter(i => i.status === 'In Progress').length
   const invoicedCount = items.filter(i => i.invoice).length
   const completedCount = items.filter(i => i.status === 'CompletedInvoiceCreated' || i.status === 'CompletedInvoicePending').length
 
@@ -324,71 +446,79 @@ const lifecycleEvents = computed(() => {
   
   // 1. Order Creation
   events.push({
-    title: 'Order Drafted',
+    title: 'Created',
     subtitle: `${total} services requested`,
     color: 'primary',
     icon: 'mdi-file-document-edit-outline',
     date: formatDate(props.order.order_date)
   })
 
-  // 2. Customer Confirmation
-  if (confirmedCount > 0 || cancelledCount > 0) {
-    if (confirmedCount === total - cancelledCount && confirmedCount > 0) {
-      events.push({
-        title: 'Customer Confirmed',
-        subtitle: 'All active services confirmed',
-        color: 'success',
-        icon: 'mdi-check-all',
-        date: 'Done'
-      })
-    } else {
-      events.push({
-        title: 'Partial Confirmation',
-        subtitle: `${confirmedCount} confirmed, ${cancelledCount} cancelled`,
-        color: 'warning',
-        icon: 'mdi-check',
-        date: 'In Progress'
-      })
+  // 2. Iterate each item (Service-centric timeline)
+  items.forEach((item, index) => {
+    const numIcon = index < 9 ? `mdi-numeric-${index + 1}-circle` : 'mdi-circle-small'
+    const serviceIdLabel = item.service_order_id ? ` (#${String(item.service_order_id).padStart(5, '0')})` : ''
+    
+    const isCompleted = item.status === 'CompletedInvoiceCreated' || item.status === 'CompletedInvoicePending'
+    const isInitiated = isCompleted || (item.status !== 'Not Started' && item.status !== 'Pending' && item.status !== 'Cancelled')
+    const isConfirmed = item.confirmed || isInitiated
+    const isCancelled = item.cancelled || item.status === 'Cancelled'
+
+    if (isCancelled) {
+       events.push({
+         title: `${item.service_name}${serviceIdLabel} - Cancelled`,
+         subtitle: item.cancel_notes || 'Cancelled by customer',
+         isNote: !!item.cancel_notes,
+         color: 'error',
+         icon: numIcon,
+         date: formatDate(item.updatedAt || item.updated_at)
+       })
+       return;
     }
-  }
 
-  // 3. Dispatch to Execution
-  if (dispatchedCount > 0) {
-    events.push({
-      title: 'Dispatched to Execution',
-      subtitle: `${dispatchedCount}/${confirmedCount} services dispatched`,
-      color: dispatchedCount === confirmedCount ? 'success' : 'primary',
-      icon: 'mdi-truck-delivery-outline',
-      date: dispatchedCount === confirmedCount ? 'Done' : 'In Progress'
+    const list = []
+    
+    // Confirmed Step
+    list.push({
+      label: 'Confirmed',
+      done: isConfirmed,
+      date: isConfirmed ? formatDate(item.updatedAt || item.updated_at) : null,
+      attachment: item.confirm_attachment ? (useRuntimeConfig().public.apiBase.replace('/api/v1', '') + item.confirm_attachment) : null
     })
-  } else if (confirmedCount > 0) {
-    events.push({
-      title: 'Pending Dispatch',
-      subtitle: 'Awaiting push to execution team',
-      color: 'grey',
-      icon: 'mdi-clock-outline'
-    })
-  }
 
-  // 4. Execution / Completion
-  if (completedCount > 0) {
-    events.push({
-      title: 'Service Execution',
-      subtitle: `${completedCount}/${dispatchedCount} services completed`,
-      color: completedCount === dispatchedCount ? 'success' : 'primary',
-      icon: 'mdi-cog-outline',
-      date: completedCount === dispatchedCount ? 'Done' : 'In Progress'
+    // Initiated Step
+    list.push({
+      label: 'Initiated',
+      done: isInitiated,
+      date: isInitiated ? formatDate(item.started_at || item.updatedAt || item.updated_at) : null
     })
-  }
+
+    // Completed Step
+    list.push({
+      label: 'Completed',
+      done: isCompleted,
+      date: isCompleted ? formatDate(item.completed_at || item.updatedAt || item.updated_at) : null
+    })
+
+    events.push({
+      title: `${item.service_name}${serviceIdLabel}`,
+      subtitle: item.confirm_notes || '',
+      isNote: !!item.confirm_notes,
+      color: isCompleted ? 'success' : (isInitiated ? 'primary' : (isConfirmed ? 'info' : 'grey')),
+      icon: numIcon,
+      list: list
+    })
+  })
 
   // 5. Invoicing
   if (invoicedCount > 0) {
+    const invoicedItems = items.filter(i => i.invoice)
+    const latestInvoice = [...invoicedItems].sort((a, b) => new Date(b.invoice.createdAt || b.invoice.created_at) - new Date(a.invoice.createdAt || a.invoice.created_at))[0]
     events.push({
-      title: 'Invoicing',
+      title: 'Invoiced',
       subtitle: `${invoicedCount} invoices generated`,
       color: 'success',
       icon: 'mdi-receipt-text-outline',
-      date: 'Done'
+      date: latestInvoice ? formatDate(latestInvoice.invoice.createdAt || latestInvoice.invoice.created_at) : ''
     })
   }
 
@@ -451,6 +581,19 @@ const viewService = (serviceOrderId) => {
   router.push(`/services?search=SRV-${String(serviceOrderId).padStart(5, '0')}`)
 }
 </script>
+
+<style scoped>
+@media (min-width: 960px) {
+  .col-md-80 {
+    flex: 0 0 80%;
+    max-width: 80%;
+  }
+  .col-md-20 {
+    flex: 0 0 20%;
+    max-width: 20%;
+  }
+}
+</style>
 
 <style scoped>
 .glass-card {

@@ -7,7 +7,7 @@
           <v-icon icon="mdi-wallet-outline" class="mr-2" color="primary"></v-icon>
           Wallet & Accounts
         </h1>
-        <p class="text-subtitle-1 text-grey-darken-1">Monitor company liquidity and inter-account movements</p>
+        <p class="text-subtitle-1 text-grey-darken-1">Monitor company liquidity, bank accounts, and credit cards</p>
       </v-col>
       <v-col cols="12" md="6" class="d-flex align-center justify-md-end flex-wrap" style="gap: 16px;">
         <v-btn
@@ -41,74 +41,226 @@
     <v-row class="mb-8">
       <v-col cols="12" md="3">
         <v-card class="pa-6 glass-card d-flex flex-column justify-center align-center" height="100%">
-          <div class="text-subtitle-2 text-uppercase font-weight-black opacity-60 mb-2">Total Cash</div>
+          <div class="text-subtitle-2 text-uppercase font-weight-black opacity-60 mb-2">Cash on Hand</div>
           <div class="text-h5 font-weight-black text-primary">AED {{ summaryStats.cash.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
         </v-card>
       </v-col>
       <v-col cols="12" md="3">
         <v-card class="pa-6 glass-card d-flex flex-column justify-center align-center" height="100%">
-          <div class="text-subtitle-2 text-uppercase font-weight-black opacity-60 mb-2">Total Bank</div>
-          <div class="text-h5 font-weight-black text-primary">AED {{ summaryStats.bank.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
+          <div class="text-subtitle-2 text-uppercase font-weight-black opacity-60 mb-2">Bank Accounts</div>
+          <div class="text-h5 font-weight-black text-primary">AED {{ summaryStats.debit.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
         </v-card>
       </v-col>
-      <v-col cols="12" md="6">
+      <v-col cols="12" md="3">
+        <v-card class="pa-6 glass-card d-flex flex-column justify-center align-center" height="100%">
+          <div class="text-subtitle-2 text-uppercase font-weight-black opacity-60 mb-2">Credit Outstanding</div>
+          <div class="text-h5 font-weight-black text-error">AED {{ summaryStats.credit.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
+        </v-card>
+      </v-col>
+      <v-col cols="12" md="3">
         <v-card class="pa-6 glass-card d-flex flex-column justify-center align-center position-relative overflow-hidden" height="100%">
           <div class="card-glow" style="background: rgba(67, 24, 255, 0.04); position: absolute; inset: 0;"></div>
-          <div class="text-subtitle-1 text-uppercase font-weight-black opacity-70 mb-2" style="z-index: 1;">Grand Total Liquidity</div>
-          <div class="text-h3 font-weight-black text-primary" style="z-index: 1;">AED {{ summaryStats.grand_total.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
+          <div class="text-subtitle-2 text-uppercase font-weight-black opacity-70 mb-2" style="z-index: 1;">Net Worth</div>
+          <div class="text-h5 font-weight-black text-primary" style="z-index: 1;">AED {{ summaryStats.net_worth.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
         </v-card>
       </v-col>
     </v-row>
 
-    <!-- Detailed Account Breakdown -->
-    <v-row class="mb-8">
-      <v-col v-for="account in walletStore.accounts" :key="account.id" cols="12" sm="6" md="3">
-        <v-card variant="flat" class="pa-4 rounded-xl border bg-surface account-card position-relative overflow-hidden">
-          <div class="card-glow" :style="`background: ${account.balance < 0 ? 'rgba(186, 26, 26, 0.05)' : 'rgba(0, 107, 45, 0.05)'}`"></div>
-          
-          <div class="d-flex align-center justify-space-between mb-3">
-            <div class="account-icon-wrapper-small rounded-lg" :class="account.name.toLowerCase().includes('cash') ? 'bg-primary-container' : 'bg-secondary-container'">
-                <v-icon size="small" :color="account.name.toLowerCase().includes('cash') ? 'primary' : 'secondary'">
-                    {{ account.name.toLowerCase().includes('cash') ? 'mdi-cash-multiple' : 'mdi-bank' }}
-                </v-icon>
-            </div>
-            <div class="d-flex align-center gap-1">
-              <v-chip size="x-small" :color="account.balance < 0 ? 'error' : 'success'" class="font-weight-bold" style="font-size: 10px; height: 18px;">
+    <!-- Cash Account Section -->
+    <div v-if="walletStore.cashAccounts.length > 0" class="mb-8">
+      <div class="text-overline font-weight-black opacity-40 mb-3 ml-1">
+        <v-icon size="small" class="mr-1">mdi-cash-multiple</v-icon> CASH ACCOUNTS
+      </div>
+      <v-row>
+        <v-col v-for="account in walletStore.cashAccounts" :key="account.id" cols="12" sm="6" md="3">
+          <v-card variant="flat" class="pa-4 rounded-xl border bg-surface account-card position-relative overflow-hidden">
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="account-icon-wrapper-small rounded-lg bg-primary-container">
+                <v-icon size="small" color="primary">mdi-cash-multiple</v-icon>
+              </div>
+              <div class="d-flex align-center gap-1">
+                <v-chip size="x-small" :color="account.balance < 0 ? 'error' : 'success'" class="font-weight-bold" style="font-size: 10px; height: 18px;">
                   {{ account.balance < 0 ? 'DEBT' : 'POSITIVE' }}
-              </v-chip>
-              <v-btn
-                v-if="auth.can('wallet', 'write')"
-                icon="mdi-pencil"
-                variant="text"
-                size="x-small"
-                color="grey-darken-1"
-                @click="openEditWallet(account)"
-                title="Edit Wallet Name"
-              ></v-btn>
+                </v-chip>
+                <v-btn v-if="auth.can('wallet', 'write')" icon="mdi-pencil" variant="text" size="x-small" color="grey-darken-1" @click="openEditWallet(account)"></v-btn>
+              </div>
             </div>
-          </div>
-
-          <div class="text-caption font-weight-bold opacity-60 text-uppercase mb-1">{{ account.name }}</div>
-          <div class="text-h6 font-weight-black mb-3">
+            <div class="text-caption font-weight-bold opacity-60 text-uppercase mb-1">{{ account.name }}</div>
+            <div class="text-h6 font-weight-black mb-3">
               <span class="text-caption font-weight-medium opacity-50 mr-1">AED</span>
-              {{ account.balance.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
-          </div>
-
-          <v-divider class="mb-3 opacity-10"></v-divider>
-          
-          <div class="d-flex align-center justify-space-between">
-              <span class="text-caption opacity-60" style="font-size: 11px !important;">Status: {{ account.is_active ? 'Active' : 'Archived' }}</span>
+              {{ parseFloat(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+            </div>
+            <v-divider class="mb-3 opacity-10"></v-divider>
+            <div class="d-flex align-center justify-space-between">
+              <span class="text-caption opacity-60" style="font-size: 11px !important;">Cash Account</span>
               <v-btn variant="text" size="x-small" color="primary" class="font-weight-bold px-0" @click="filterByAccount(account.id)">VIEW LEDGER</v-btn>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
+            </div>
+          </v-card>
+        </v-col>
+      </v-row>
+    </div>
+
+    <!-- Debit / Bank Account Section -->
+    <div v-if="walletStore.debitAccounts.length > 0" class="mb-8">
+      <div class="text-overline font-weight-black opacity-40 mb-3 ml-1">
+        <v-icon size="small" class="mr-1">mdi-bank</v-icon> BANK ACCOUNTS (DEBIT)
+      </div>
+      <v-row>
+        <v-col v-for="account in walletStore.debitAccounts" :key="account.id" cols="12" sm="6" md="3">
+          <v-card variant="flat" class="pa-4 rounded-xl border bg-surface account-card position-relative overflow-hidden">
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="account-icon-wrapper-small rounded-lg bg-secondary-container">
+                <v-icon size="small" color="secondary">mdi-bank</v-icon>
+              </div>
+              <div class="d-flex align-center gap-1">
+                <v-chip size="x-small" :color="account.balance < 0 ? 'error' : 'success'" class="font-weight-bold" style="font-size: 10px; height: 18px;">
+                  {{ account.balance < 0 ? 'DEBT' : 'POSITIVE' }}
+                </v-chip>
+                <v-btn v-if="auth.can('wallet', 'write')" icon="mdi-pencil" variant="text" size="x-small" color="grey-darken-1" @click="openEditWallet(account)"></v-btn>
+              </div>
+            </div>
+            <div class="text-caption font-weight-bold opacity-60 text-uppercase mb-1">{{ account.name }}</div>
+            <div class="text-h6 font-weight-black mb-3">
+              <span class="text-caption font-weight-medium opacity-50 mr-1">AED</span>
+              {{ parseFloat(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+            </div>
+            <v-divider class="mb-3 opacity-10"></v-divider>
+            <div class="d-flex align-center justify-space-between">
+              <span class="text-caption opacity-60" style="font-size: 11px !important;">Debit Card / Bank</span>
+              <v-btn variant="text" size="x-small" color="primary" class="font-weight-bold px-0" @click="filterByAccount(account.id)">VIEW LEDGER</v-btn>
+            </div>
+          </v-card>
+        </v-col>
+      </v-row>
+    </div>
+
+    <!-- Credit Card Section -->
+    <div v-if="walletStore.creditAccounts.length > 0" class="mb-8">
+      <div class="text-overline font-weight-black opacity-40 mb-3 ml-1">
+        <v-icon size="small" class="mr-1">mdi-credit-card-outline</v-icon> CREDIT CARDS
+      </div>
+      <v-row>
+        <v-col v-for="account in walletStore.creditAccounts" :key="account.id" cols="12" sm="6" md="4">
+          <v-card variant="flat" class="pa-5 rounded-xl border bg-surface account-card position-relative overflow-hidden">
+            <div class="card-glow" style="background: rgba(186, 26, 26, 0.03);"></div>
+
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="account-icon-wrapper-small rounded-lg" style="background: rgba(186, 26, 26, 0.08);">
+                <v-icon size="small" color="error">mdi-credit-card-outline</v-icon>
+              </div>
+              <div class="d-flex align-center gap-1">
+                <v-chip size="x-small" color="error" variant="tonal" class="font-weight-bold" style="font-size: 10px; height: 18px;">
+                  CREDIT
+                </v-chip>
+                <v-btn v-if="auth.can('wallet', 'write')" icon="mdi-pencil" variant="text" size="x-small" color="grey-darken-1" @click="openEditWallet(account)"></v-btn>
+              </div>
+            </div>
+
+            <div class="text-caption font-weight-bold opacity-60 text-uppercase mb-1">{{ account.name }}</div>
+
+            <!-- Outstanding Balance -->
+            <div class="text-h6 font-weight-black text-error mb-2">
+              <span class="text-caption font-weight-medium opacity-50 mr-1">AED</span>
+              {{ parseFloat(account.outstanding_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+              <span class="text-caption opacity-40 ml-1">outstanding</span>
+            </div>
+
+            <!-- Credit Limit Progress -->
+            <div class="mb-3">
+              <div class="d-flex justify-space-between text-caption opacity-60 mb-1">
+                <span>Used</span>
+                <span>AED {{ parseFloat(account.available_credit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }} available</span>
+              </div>
+              <v-progress-linear
+                :model-value="creditUsagePercent(account)"
+                :color="creditUsagePercent(account) > 80 ? 'error' : creditUsagePercent(account) > 50 ? 'warning' : 'success'"
+                height="6"
+                rounded
+              ></v-progress-linear>
+              <div class="text-caption opacity-40 mt-1">
+                Limit: AED {{ parseFloat(account.credit_limit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+              </div>
+            </div>
+
+            <v-divider class="mb-3 opacity-10"></v-divider>
+
+            <!-- Due Date & Payment Status -->
+            <div class="pa-3 rounded-lg mb-3" style="background: rgba(0,0,0,0.02);">
+              <div class="d-flex align-center justify-space-between mb-2">
+                <div>
+                  <div class="text-caption opacity-50 font-weight-bold">DUE DATE</div>
+                  <div class="text-body-2 font-weight-black">{{ formatDate(account.current_due_date) }}</div>
+                </div>
+                <v-chip 
+                  size="small" 
+                  :color="parseFloat(account.billed_remaining || 0) > 0 ? 'error' : 'success'" 
+                  variant="tonal"
+                  class="font-weight-bold"
+                >
+                  {{ parseFloat(account.billed_remaining || 0) > 0 ? 'PAYMENT DUE' : 'CLEARED' }}
+                </v-chip>
+              </div>
+              
+              <!-- Payment Progress -->
+              <v-row dense>
+                <v-col cols="4">
+                  <div class="text-caption opacity-50">Total Bill</div>
+                  <div class="text-body-2 font-weight-bold">AED {{ parseFloat(account.total_billed || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
+                </v-col>
+                <v-col cols="4">
+                  <div class="text-caption opacity-50">Paid</div>
+                  <div class="text-body-2 font-weight-bold text-success">AED {{ parseFloat(account.paid_toward_bill || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
+                </v-col>
+                <v-col cols="4">
+                  <div class="text-caption opacity-50">Remaining</div>
+                  <div class="text-body-2 font-weight-bold text-error">AED {{ parseFloat(account.billed_remaining || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
+                </v-col>
+              </v-row>
+
+              <!-- Payment progress bar -->
+              <v-progress-linear
+                v-if="parseFloat(account.total_billed || 0) > 0"
+                :model-value="billPaymentPercent(account)"
+                color="success"
+                bg-color="error"
+                bg-opacity="0.15"
+                height="4"
+                rounded
+                class="mt-2"
+              ></v-progress-linear>
+            </div>
+
+            <!-- Unbilled (current cycle) -->
+            <div class="d-flex align-center justify-space-between mb-2">
+              <div>
+                <div class="text-caption opacity-50 font-weight-bold">UNBILLED (Current Cycle)</div>
+                <div class="text-body-2 font-weight-black">AED {{ parseFloat(account.unbilled_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</div>
+              </div>
+              <div class="text-right">
+                <div class="text-caption opacity-40">Next Bill</div>
+                <div class="text-caption font-weight-bold">{{ formatDate(account.next_bill_date) }}</div>
+              </div>
+            </div>
+
+            <v-divider class="mb-2 opacity-10"></v-divider>
+
+            <div class="d-flex align-center justify-space-between">
+              <span class="text-caption opacity-50" style="font-size: 10px !important;">Bill Day: {{ account.bill_day }} · Due Day: {{ account.due_day }}</span>
+              <v-btn variant="text" size="x-small" color="primary" class="font-weight-bold px-0" @click="filterByAccount(account.id)">VIEW LEDGER</v-btn>
+            </div>
+          </v-card>
+        </v-col>
+      </v-row>
+    </div>
 
     <!-- Ledger Section -->
     <v-card class="border rounded-2xl" border>
       <v-toolbar color="surface" flat border-b class="px-4">
           <v-icon icon="mdi-format-list-bulleted" color="primary" class="mr-3"></v-icon>
           <span class="text-h6 font-weight-bold">Detailed Financial Ledger</span>
+          <v-chip v-if="accountFilter" size="small" closable @click:close="clearAccountFilter" color="primary" variant="tonal" class="ml-3">
+            Filtered
+          </v-chip>
           <v-spacer></v-spacer>
           <v-text-field
             v-model="search"
@@ -141,7 +293,8 @@
         
         <!-- Account tag -->
         <template v-slot:item.WalletAccount="{ item }">
-          <v-chip size="small" variant="tonal" color="primary" density="compact" class="font-weight-bold px-3">
+          <v-chip size="small" variant="tonal" :color="getAccountTypeColor(item.WalletAccount?.account_type)" density="compact" class="font-weight-bold px-3">
+              <v-icon start size="x-small">{{ getAccountIcon(item.WalletAccount?.account_type) }}</v-icon>
               {{ item.WalletAccount?.name }}
           </v-chip>
         </template>
@@ -188,7 +341,7 @@
     />
 
     <!-- Add / Edit Wallet Dialog -->
-    <v-dialog v-model="walletDialog" max-width="500px">
+    <v-dialog v-model="walletDialog" max-width="550px">
       <v-card class="rounded-xl border">
         <v-toolbar color="surface" flat border-b>
           <v-toolbar-title class="font-weight-bold">{{ editingWallet ? 'Edit Wallet' : 'Add Wallet' }}</v-toolbar-title>
@@ -197,6 +350,28 @@
         </v-toolbar>
         <v-card-text class="pt-6">
           <v-form ref="walletForm" v-model="walletFormValid" @submit.prevent="saveWallet">
+            <!-- Account Type Selector -->
+            <div class="text-caption font-weight-bold opacity-60 mb-2 ml-1">Account Type *</div>
+            <v-btn-toggle
+              v-model="walletData.account_type"
+              mandatory
+              density="comfortable"
+              divided
+              variant="outlined"
+              color="primary"
+              class="mb-4 w-100"
+            >
+              <v-btn value="Cash" class="flex-grow-1">
+                <v-icon start size="small">mdi-cash-multiple</v-icon> Cash
+              </v-btn>
+              <v-btn value="Debit" class="flex-grow-1">
+                <v-icon start size="small">mdi-bank</v-icon> Debit Card
+              </v-btn>
+              <v-btn value="Credit" class="flex-grow-1">
+                <v-icon start size="small">mdi-credit-card-outline</v-icon> Credit Card
+              </v-btn>
+            </v-btn-toggle>
+
             <v-text-field
               v-model="walletData.name"
               label="Wallet Name *"
@@ -205,6 +380,7 @@
               :rules="[v => !!v || 'Name is required']"
               required
             ></v-text-field>
+
             <v-text-field
               v-model="walletData.description"
               label="Description (Optional)"
@@ -212,8 +388,10 @@
               density="comfortable"
               class="mt-2"
             ></v-text-field>
+
+            <!-- Opening Balance (Cash & Debit only) -->
             <v-text-field
-              v-if="!editingWallet"
+              v-if="!editingWallet && walletData.account_type !== 'Credit'"
               v-model.number="walletData.opening_balance"
               label="Opening Balance (Optional)"
               type="number"
@@ -224,6 +402,63 @@
               class="mt-2"
               prefix="AED"
             ></v-text-field>
+
+            <!-- Credit Card Specific Fields -->
+            <v-expand-transition>
+              <div v-if="walletData.account_type === 'Credit'" class="mt-4">
+                <v-divider class="mb-4"></v-divider>
+                <div class="text-subtitle-2 font-weight-bold mb-3 d-flex align-center">
+                  <v-icon size="small" color="error" class="mr-2">mdi-credit-card-settings-outline</v-icon>
+                  Credit Card Settings
+                </div>
+
+                <v-text-field
+                  v-model.number="walletData.credit_limit"
+                  label="Credit Limit *"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  variant="outlined"
+                  density="comfortable"
+                  prefix="AED"
+                  :rules="[v => (!!v && v > 0) || 'Credit limit is required']"
+                ></v-text-field>
+
+                <v-row dense class="mt-2">
+                  <v-col cols="6">
+                    <v-select
+                      v-model.number="walletData.bill_day"
+                      :items="dayOptions"
+                      label="Billing Day *"
+                      variant="outlined"
+                      density="comfortable"
+                      :rules="[v => !!v || 'Required']"
+                      hint="Day of the month the bill is generated"
+                      persistent-hint
+                    ></v-select>
+                  </v-col>
+                  <v-col cols="6">
+                    <v-select
+                      v-model.number="walletData.due_day"
+                      :items="dayOptions"
+                      label="Due Day *"
+                      variant="outlined"
+                      density="comfortable"
+                      :rules="[v => !!v || 'Required']"
+                      hint="Day of the month payment is due"
+                      persistent-hint
+                    ></v-select>
+                  </v-col>
+                </v-row>
+
+                <!-- Cycle Preview -->
+                <v-alert v-if="walletData.bill_day && walletData.due_day" type="info" variant="tonal" density="compact" class="mt-4 text-caption">
+                  <strong>Billing Cycle Preview:</strong> Purchases up to the <strong>{{ ordinal(walletData.bill_day) }}</strong> of each month will be due on the 
+                  <strong>{{ ordinal(walletData.due_day) }}</strong> of
+                  {{ walletData.due_day >= walletData.bill_day ? 'the same month' : 'the following month' }}.
+                </v-alert>
+              </div>
+            </v-expand-transition>
           </v-form>
         </v-card-text>
         <v-card-actions class="pa-4 border-t">
@@ -265,7 +500,21 @@ const editingWallet = ref(null);
 const walletSaving = ref(false);
 const walletFormValid = ref(false);
 const walletForm = ref(null);
-const walletData = ref({ name: '', description: '' });
+const walletData = ref({ 
+  name: '', 
+  description: '', 
+  account_type: 'Cash',
+  opening_balance: 0,
+  credit_limit: null,
+  bill_day: null,
+  due_day: null
+});
+
+// Generate day options 1-31
+const dayOptions = Array.from({ length: 31 }, (_, i) => ({
+  title: `${i + 1}${ordinal(i + 1).replace(String(i + 1), '')}`,
+  value: i + 1
+}));
 
 const headers = [
   { title: 'Date / Time', key: 'created_at', sortable: false },
@@ -279,13 +528,15 @@ const headers = [
 // Summary Statistics Computation
 const summaryStats = computed(() => {
     let cash = 0;
-    let bank = 0;
+    let debit = 0;
+    let credit = 0;
     walletStore.accounts.forEach(acc => {
         const bal = parseFloat(acc.balance || 0);
-        if (acc.name.toLowerCase().includes('cash')) cash += bal;
-        else bank += bal;
+        if (acc.account_type === 'Cash') cash += bal;
+        else if (acc.account_type === 'Debit') debit += bal;
+        else if (acc.account_type === 'Credit') credit += parseFloat(acc.outstanding_balance || 0);
     });
-    return { cash, bank, grand_total: cash + bank };
+    return { cash, debit, credit, net_worth: cash + debit - credit };
 });
 
 onMounted(() => {
@@ -311,6 +562,11 @@ const filterByAccount = (id) => {
     loadTransactions({ page: 1, itemsPerPage: itemsPerPage.value });
 };
 
+const clearAccountFilter = () => {
+    accountFilter.value = null;
+    loadTransactions({ page: 1, itemsPerPage: itemsPerPage.value });
+};
+
 const onTransferSuccess = () => {
   snackbarMessage.value = 'Internal transfer completed successfully.';
   successSnackbar.value = true;
@@ -319,13 +575,28 @@ const onTransferSuccess = () => {
 
 const openAddWallet = () => {
   editingWallet.value = null;
-  walletData.value = { name: '', description: '', opening_balance: 0 };
+  walletData.value = { 
+    name: '', 
+    description: '', 
+    account_type: 'Cash',
+    opening_balance: 0,
+    credit_limit: null,
+    bill_day: null,
+    due_day: null
+  };
   walletDialog.value = true;
 };
 
 const openEditWallet = (account) => {
   editingWallet.value = account;
-  walletData.value = { name: account.name, description: account.description || '' };
+  walletData.value = { 
+    name: account.name, 
+    description: account.description || '',
+    account_type: account.account_type || 'Cash',
+    credit_limit: account.credit_limit || null,
+    bill_day: account.bill_day || null,
+    due_day: account.due_day || null
+  };
   walletDialog.value = true;
 };
 
@@ -357,7 +628,29 @@ const saveWallet = async () => {
   }
 };
 
-const formatDate = (date) => dayjs(date).format('DD MMM YYYY');
+const creditUsagePercent = (account) => {
+  const limit = parseFloat(account.credit_limit || 1);
+  const outstanding = parseFloat(account.outstanding_balance || 0);
+  return Math.min(100, (outstanding / limit) * 100);
+};
+
+const billPaymentPercent = (account) => {
+  const total = parseFloat(account.total_billed || 0);
+  if (total === 0) return 100;
+  const paid = parseFloat(account.paid_toward_bill || 0);
+  return Math.min(100, (paid / total) * 100);
+};
+
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+const formatDate = (date) => {
+  if (!date) return '—';
+  return dayjs(date).format('DD MMM YYYY');
+};
 const formatTime = (date) => dayjs(date).format('hh:mm A');
 
 const getTypeColor = (type) => {
@@ -367,6 +660,24 @@ const getTypeColor = (type) => {
     case 'Transfer': return 'info';
     case 'Manual': return 'grey-darken-1';
     default: return 'grey';
+  }
+};
+
+const getAccountTypeColor = (type) => {
+  switch (type) {
+    case 'Cash': return 'primary';
+    case 'Debit': return 'secondary';
+    case 'Credit': return 'error';
+    default: return 'primary';
+  }
+};
+
+const getAccountIcon = (type) => {
+  switch (type) {
+    case 'Cash': return 'mdi-cash-multiple';
+    case 'Debit': return 'mdi-bank';
+    case 'Credit': return 'mdi-credit-card-outline';
+    default: return 'mdi-wallet';
   }
 };
 
@@ -389,13 +700,6 @@ const getReferenceRoute = (item) => {
     transform: translateY(-8px);
     box-shadow: 0 12px 32px -4px rgba(0,0,0,0.12) !important;
 }
-.account-icon-wrapper {
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 .account-icon-wrapper-small {
     width: 32px;
     height: 32px;
@@ -410,9 +714,5 @@ const getReferenceRoute = (item) => {
     bottom: 0;
     left: 0;
     pointer-events: none;
-}
-.ledger-search :deep(.v-field__input) {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
 }
 </style>

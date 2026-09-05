@@ -81,10 +81,10 @@ export const useServiceStore = defineStore('services', {
       }
     },
 
-    async updateOrderStatus(id, status) {
+    async updateOrderStatus(id, status, wallet_id = null) {
       try {
         const { $api } = useNuxtApp()
-        const response = await $api.put(`/services/orders/${id}/status`, { status })
+        const response = await $api.put(`/services/orders/${id}/status`, { status, wallet_id })
         if (response.data.success) {
           const index = this.serviceOrders.findIndex(o => o.id === id)
           if (index !== -1) this.serviceOrders[index] = response.data.data

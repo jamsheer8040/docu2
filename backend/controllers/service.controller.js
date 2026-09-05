@@ -95,11 +95,23 @@ exports.deleteServiceType = async (req, res, next) => {
     if (!type) return res.status(404).json({ success: false, message: 'Service type not found' });
 
     // Check if used in orders
-    const count = await ServiceOrder.count({ where: { service_type_id: type.id } });
+    const count = await ServiceOrder.count({ where: { tenant_id: req.user.tenant_id, service_type_id: type.id } });
     if (count > 0) {
       return res.status(400).json({ 
         success: false, 
         message: 'Cannot delete service type that is linked to existing orders. Deactivate it instead.' 
+      });
+    }
+
+    // Check if used in sales order items
+    const salesOrderCount = await SalesOrderItem.count({ 
+      include: [{ model: require('../models').SalesOrder, where: { tenant_id: req.user.tenant_id }, required: true }],
+      where: { service_type_id: type.id } 
+    });
+    if (salesOrderCount > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete service type that is linked to existing sales orders. Deactivate it instead.' 
       });
     }
 
@@ -198,7 +210,7 @@ exports.createServiceOrder = async (req, res, next) => {
 exports.updateServiceOrderStatus = async (req, res, next) => {
   const transaction = await sequelize.transaction();
   try {
-    const { status } = req.body;
+    const { status, wallet_id } = req.body;
     const order = await ServiceOrder.findOne({
       where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
@@ -219,7 +231,7 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
     // CANCEL VALIDATION: block if active invoice exists
     if (status === 'Cancelled') {
       const invoice = await Invoice.findOne({
-        where: { service_order_id: order.id, status: { [Op.ne]: 'Cancelled' } },
+        where: { service_order_id: order.id, status: { [Op.ne]: 'Cancelled' }, tenant_id: req.user.tenant_id },
         transaction
       });
       if (invoice) {
@@ -239,11 +251,41 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
     } else if (oldStatus === 'In Progress' && status === 'Completed') {
       // Complete Service — check invoice to determine which completed stage
       const invoice = await Invoice.findOne({
-        where: { service_order_id: order.id, status: { [Op.ne]: 'Cancelled' } },
+        where: { service_order_id: order.id, status: { [Op.ne]: 'Cancelled' }, tenant_id: req.user.tenant_id },
         transaction
       });
       updates.status = invoice ? 'CompletedInvoiceCreated' : 'CompletedInvoicePending';
       updates.completed_at = new Date();
+
+      // Wallet deduction logic for Service Completion
+      if (wallet_id && !order.is_cost_deducted) {
+        const salesOrderItem = await SalesOrderItem.findOne({
+          where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
+          transaction
+        });
+        if (salesOrderItem && parseFloat(salesOrderItem.cost) > 0) {
+          const totalCost = parseFloat(salesOrderItem.cost) * parseInt(salesOrderItem.quantity || 1);
+          const { WalletTransaction, WalletAccount } = require('../models');
+          await WalletTransaction.create({
+            account_id: wallet_id,
+            type: 'Expense',
+            direction: 'Out',
+            amount: totalCost,
+            reference_id: order.id,
+            reference_type: 'ServiceCost',
+            description: `Cost payment for Service #${order.id} - ${salesOrderItem.service_name}`,
+            tenant_id: order.tenant_id
+          }, { transaction });
+
+          await WalletAccount.decrement('balance', {
+            by: totalCost,
+            where: { id: wallet_id },
+            transaction
+          });
+          
+          updates.is_cost_deducted = true;
+        }
+      }
 
     } else if (
       (oldStatus === 'CompletedInvoicePending' || oldStatus === 'CompletedInvoiceCreated') &&
@@ -253,7 +295,8 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
       const persistentInvoice = await Invoice.findOne({
         where: {
           service_order_id: order.id,
-          status: { [Op.in]: ['Sent', 'Partially Paid', 'Paid'] }
+          status: { [Op.in]: ['Sent', 'Partially Paid', 'Paid'] },
+          tenant_id: req.user.tenant_id
         },
         transaction
       });
@@ -271,7 +314,7 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
 
     // Sync status to SalesOrderItem
     const salesOrderItem = await SalesOrderItem.findOne({
-      where: { service_order_id: order.id },
+      where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
       transaction
     });
 
@@ -316,6 +359,7 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
 
 exports.deleteServiceOrder = async (req, res, next) => {
   try {
+    const { Invoice, SalesOrderItem } = require('../models');
     const order = await ServiceOrder.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
@@ -323,6 +367,24 @@ exports.deleteServiceOrder = async (req, res, next) => {
       return res.status(400).json({ 
         success: false, 
         message: 'Only Pending or Cancelled orders can be deleted.' 
+      });
+    }
+
+    // Dependency check: Invoices
+    const invoiceCount = await Invoice.count({ where: { service_order_id: order.id, tenant_id: req.user.tenant_id } });
+    if (invoiceCount > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete a Service Order that has an associated Invoice.' 
+      });
+    }
+
+    // Dependency check: Sales Order
+    const salesOrderItem = await SalesOrderItem.count({ where: { service_order_id: order.id, tenant_id: req.user.tenant_id } });
+    if (salesOrderItem > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete a Service Order generated from a Sales Order. Cancel it instead.' 
       });
     }
 
@@ -348,7 +410,8 @@ exports.updateServiceOrder = async (req, res, next) => {
     const linkedInvoice = await Invoice.findOne({
       where: {
         service_order_id: order.id,
-        status: { [Op.ne]: 'Cancelled' }
+        status: { [Op.ne]: 'Cancelled' },
+        tenant_id: req.user.tenant_id
       }
     });
 
@@ -396,7 +459,8 @@ async function generateInvoiceNumber(transaction) {
   const year = new Date().getFullYear();
   const lastInvoice = await Invoice.findOne({
     where: {
-      invoice_number: { [Op.like]: `INV-${year}-%` }
+      invoice_number: { [Op.like]: `INV-${year}-%` },
+      tenant_id: req.user.tenant_id
     },
     order: [['invoice_number', 'DESC']],
     transaction

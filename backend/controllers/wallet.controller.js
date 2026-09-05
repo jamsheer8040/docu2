@@ -4,7 +4,44 @@ const WalletAccount = require('../models/WalletAccount');
 const WalletTransaction = require('../models/WalletTransaction');
 
 /**
- * Get all accounts with computed balance
+ * Helper: Compute credit card billing cycle dates
+ * Logic: if bill_day < due_day => same month; if bill_day >= due_day => due is next month
+ */
+const getCreditCardCycleDates = (billDay, dueDay) => {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth(); // 0-indexed
+
+  // Determine the most recent bill date (on or before today)
+  let lastBillDate = new Date(currentYear, currentMonth, billDay);
+  if (lastBillDate > today) {
+    // Bill date hasn't arrived this month yet, use last month's
+    lastBillDate = new Date(currentYear, currentMonth - 1, billDay);
+  }
+
+  // Next bill date
+  let nextBillDate = new Date(lastBillDate);
+  nextBillDate.setMonth(nextBillDate.getMonth() + 1);
+
+  // Due date for the current billing cycle
+  let currentDueDate;
+  if (dueDay >= billDay) {
+    // Due is in the same month as bill
+    currentDueDate = new Date(lastBillDate.getFullYear(), lastBillDate.getMonth(), dueDay);
+  } else {
+    // Due is in the next month after bill
+    currentDueDate = new Date(lastBillDate.getFullYear(), lastBillDate.getMonth() + 1, dueDay);
+  }
+
+  return {
+    lastBillDate,
+    nextBillDate,
+    currentDueDate
+  };
+};
+
+/**
+ * Get all accounts with computed balance and credit card metrics
  */
 exports.getAccounts = async (req, res) => {
   try {
@@ -20,14 +57,95 @@ exports.getAccounts = async (req, res) => {
         where: { account_id: account.id, direction: 'Out', tenant_id: req.user.tenant_id }
       }) || 0;
 
-      return {
+      const balance = parseFloat(inSum) - parseFloat(outSum);
+      const result = {
         ...account.toJSON(),
-        balance: parseFloat(inSum) - parseFloat(outSum)
+        balance
       };
+
+      // Add credit card specific metrics
+      if (account.account_type === 'Credit' && account.bill_day && account.due_day) {
+        const { lastBillDate, nextBillDate, currentDueDate } = getCreditCardCycleDates(account.bill_day, account.due_day);
+        
+        const creditLimit = parseFloat(account.credit_limit || 0);
+        // For credit cards, "outSum - inSum" = outstanding (money owed)
+        const outstandingBalance = parseFloat(outSum) - parseFloat(inSum);
+        const availableCredit = creditLimit - Math.max(0, outstandingBalance);
+
+        // Billed: outflows before lastBillDate (gross purchases in that cycle)
+        const billedOut = await WalletTransaction.sum('amount', {
+          where: { 
+            account_id: account.id, 
+            direction: 'Out', 
+            tenant_id: req.user.tenant_id,
+            created_at: { [Op.lt]: lastBillDate }
+          }
+        }) || 0;
+        // Payments received toward bill (inflows before lastBillDate)
+        const billedIn = await WalletTransaction.sum('amount', {
+          where: { 
+            account_id: account.id, 
+            direction: 'In', 
+            tenant_id: req.user.tenant_id,
+            created_at: { [Op.lt]: lastBillDate }
+          }
+        }) || 0;
+
+        // Unbilled: outflows after lastBillDate (current cycle spending)
+        const unbilledOut = await WalletTransaction.sum('amount', {
+          where: { 
+            account_id: account.id, 
+            direction: 'Out', 
+            tenant_id: req.user.tenant_id,
+            created_at: { [Op.gte]: lastBillDate }
+          }
+        }) || 0;
+        // Payments made in current (unbilled) cycle
+        const unbilledIn = await WalletTransaction.sum('amount', {
+          where: { 
+            account_id: account.id, 
+            direction: 'In', 
+            tenant_id: req.user.tenant_id,
+            created_at: { [Op.gte]: lastBillDate }
+          }
+        }) || 0;
+
+        // Total payments received (all time)
+        const totalPaid = parseFloat(inSum);
+
+        // Gross billed amount (total purchases before last bill date)
+        const totalBilled = parseFloat(billedOut);
+        // How much was paid toward the billed amount
+        const paidTowardBill = parseFloat(billedIn);
+        // Remaining due for the current bill
+        const billedRemaining = Math.max(0, totalBilled - paidTowardBill);
+
+        result.outstanding_balance = Math.max(0, outstandingBalance);
+        result.available_credit = Math.max(0, availableCredit);
+        result.credit_limit = creditLimit;
+        // Gross bill breakdown
+        result.total_billed = totalBilled;
+        result.paid_toward_bill = paidTowardBill;
+        result.billed_remaining = billedRemaining;
+        // Net billed (for backward compat)
+        result.billed_amount = billedRemaining;
+        result.unbilled_amount = Math.max(0, parseFloat(unbilledOut) - parseFloat(unbilledIn));
+        // Total payments all time
+        result.total_paid = totalPaid;
+        // Dates
+        result.last_bill_date = lastBillDate;
+        result.next_bill_date = nextBillDate;
+        result.current_due_date = currentDueDate;
+        // Override balance for display: credit cards show outstanding as negative
+        result.balance = -Math.max(0, outstandingBalance);
+      }
+
+      return result;
     }));
 
     res.json({ success: true, data: accountsWithBalance });
   } catch (err) {
+    console.error('Get Accounts Error:', err);
     res.status(500).json({ success: false, message: 'Error fetching accounts.' });
   }
 };
@@ -55,7 +173,7 @@ exports.getTransactions = async (req, res) => {
   try {
     const { count, rows } = await WalletTransaction.findAndCountAll({
       where,
-      include: [{ model: WalletAccount, attributes: ['name'] }],
+      include: [{ model: WalletAccount, attributes: ['name', 'account_type'] }],
       order: [['created_at', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset)
@@ -77,6 +195,7 @@ exports.getTransactions = async (req, res) => {
 
 /**
  * Handle manual transfer between accounts
+ * Enforces credit limit for Credit card accounts
  */
 exports.transfer = async (req, res) => {
   const { from_account_id, to_account_id, amount, description } = req.body;
@@ -95,29 +214,54 @@ exports.transfer = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Invalid accounts.' });
     }
 
-    // 1. Verify source balance
-    const inSum = await WalletTransaction.sum('amount', {
-      where: { account_id: from_account_id, direction: 'In' },
-      transaction: t
-    }) || 0;
-    const outSum = await WalletTransaction.sum('amount', {
-      where: { account_id: from_account_id, direction: 'Out' },
-      transaction: t
-    }) || 0;
-    const currentBalance = parseFloat(inSum) - parseFloat(outSum);
+    // For Cash and Debit: verify sufficient balance
+    if (fromAcc.account_type !== 'Credit') {
+      const inSum = await WalletTransaction.sum('amount', {
+        where: { account_id: from_account_id, direction: 'In' },
+        transaction: t
+      }) || 0;
+      const outSum = await WalletTransaction.sum('amount', {
+        where: { account_id: from_account_id, direction: 'Out' },
+        transaction: t
+      }) || 0;
+      const currentBalance = parseFloat(inSum) - parseFloat(outSum);
 
-    if (currentBalance < amount) {
-      await t.rollback();
-      return res.status(400).json({ success: false, message: 'Insufficient balance in source account.' });
+      if (currentBalance < amount) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Insufficient balance in source account.' });
+      }
     }
 
-    // 2. Create Out transaction
+    // For Credit card as source (spending from credit): enforce credit limit
+    if (fromAcc.account_type === 'Credit') {
+      const inSum = await WalletTransaction.sum('amount', {
+        where: { account_id: from_account_id, direction: 'In' },
+        transaction: t
+      }) || 0;
+      const outSum = await WalletTransaction.sum('amount', {
+        where: { account_id: from_account_id, direction: 'Out' },
+        transaction: t
+      }) || 0;
+      const outstanding = parseFloat(outSum) - parseFloat(inSum);
+      const creditLimit = parseFloat(fromAcc.credit_limit || 0);
+      const availableCredit = creditLimit - Math.max(0, outstanding);
+
+      if (amount > availableCredit) {
+        await t.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: `Credit limit exceeded. Available credit: AED ${availableCredit.toFixed(2)}` 
+        });
+      }
+    }
+
+    // 1. Create Out transaction from source
     await WalletTransaction.create({
       account_id: from_account_id,
       type: 'Transfer',
       direction: 'Out',
       amount,
-      description: `Transfer to ${to_account_id}: ${description || ''}`,
+      description: `Transfer to ${toAcc.name}: ${description || ''}`,
       tenant_id: req.user.tenant_id
     }, { transaction: t });
 
@@ -128,13 +272,13 @@ exports.transfer = async (req, res) => {
       transaction: t
     });
 
-    // 3. Create In transaction
+    // 2. Create In transaction to destination
     await WalletTransaction.create({
       account_id: to_account_id,
       type: 'Transfer',
       direction: 'In',
       amount,
-      description: `Transfer from ${from_account_id}: ${description || ''}`,
+      description: `Transfer from ${fromAcc.name}: ${description || ''}`,
       tenant_id: req.user.tenant_id
     }, { transaction: t });
 
@@ -158,13 +302,43 @@ exports.transfer = async (req, res) => {
  */
 exports.getSummary = async (req, res) => {
   try {
-    const inTotal = await WalletTransaction.sum('amount', { where: { direction: 'In', tenant_id: req.user.tenant_id } }) || 0;
-    const outTotal = await WalletTransaction.sum('amount', { where: { direction: 'Out', tenant_id: req.user.tenant_id } }) || 0;
+    // Get all active accounts to categorize
+    const accounts = await WalletAccount.findAll({
+      where: { is_active: true, tenant_id: req.user.tenant_id }
+    });
+
+    let cashTotal = 0;
+    let debitTotal = 0;
+    let creditOutstanding = 0;
+
+    for (const account of accounts) {
+      const inSum = await WalletTransaction.sum('amount', {
+        where: { account_id: account.id, direction: 'In', tenant_id: req.user.tenant_id }
+      }) || 0;
+      const outSum = await WalletTransaction.sum('amount', {
+        where: { account_id: account.id, direction: 'Out', tenant_id: req.user.tenant_id }
+      }) || 0;
+
+      const balance = parseFloat(inSum) - parseFloat(outSum);
+
+      if (account.account_type === 'Cash') {
+        cashTotal += balance;
+      } else if (account.account_type === 'Debit') {
+        debitTotal += balance;
+      } else if (account.account_type === 'Credit') {
+        // Outstanding = money owed (outSum - inSum)
+        creditOutstanding += Math.max(0, parseFloat(outSum) - parseFloat(inSum));
+      }
+    }
 
     res.json({
       success: true,
       data: {
-        total_balance: parseFloat(inTotal) - parseFloat(outTotal)
+        cash_total: cashTotal,
+        debit_total: debitTotal,
+        credit_outstanding: creditOutstanding,
+        total_balance: cashTotal + debitTotal,
+        net_worth: cashTotal + debitTotal - creditOutstanding
       }
     });
   } catch (err) {
@@ -172,15 +346,36 @@ exports.getSummary = async (req, res) => {
   }
 };
 
+/**
+ * Create a new wallet account
+ */
 exports.createAccount = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { name, description, opening_balance } = req.body;
+    const { name, description, opening_balance, account_type, credit_limit, bill_day, due_day } = req.body;
     if (!name) {
       await t.rollback();
       return res.status(400).json({ success: false, message: 'Name is required' });
     }
     
+    const type = account_type || 'Cash';
+
+    // Validate credit card fields
+    if (type === 'Credit') {
+      if (!credit_limit || parseFloat(credit_limit) <= 0) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Credit limit is required for credit cards' });
+      }
+      if (!bill_day || bill_day < 1 || bill_day > 31) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Valid billing day (1-31) is required for credit cards' });
+      }
+      if (!due_day || due_day < 1 || due_day > 31) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'Valid due day (1-31) is required for credit cards' });
+      }
+    }
+
     const existing = await WalletAccount.findOne({ where: { name, tenant_id: req.user.tenant_id }, transaction: t });
     if (existing) {
       await t.rollback();
@@ -188,11 +383,20 @@ exports.createAccount = async (req, res) => {
     }
 
     let balance = 0;
-    if (opening_balance && parseFloat(opening_balance) > 0) {
+    if (type !== 'Credit' && opening_balance && parseFloat(opening_balance) > 0) {
       balance = parseFloat(opening_balance);
     }
 
-    const account = await WalletAccount.create({ name, description, balance, tenant_id: req.user.tenant_id }, { transaction: t });
+    const account = await WalletAccount.create({ 
+      name, 
+      description, 
+      balance, 
+      account_type: type,
+      credit_limit: type === 'Credit' ? parseFloat(credit_limit) : null,
+      bill_day: type === 'Credit' ? parseInt(bill_day) : null,
+      due_day: type === 'Credit' ? parseInt(due_day) : null,
+      tenant_id: req.user.tenant_id 
+    }, { transaction: t });
     
     if (balance > 0) {
       await WalletTransaction.create({
@@ -214,10 +418,13 @@ exports.createAccount = async (req, res) => {
   }
 };
 
+/**
+ * Update wallet account
+ */
 exports.updateAccount = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, account_type, credit_limit, bill_day, due_day } = req.body;
     
     const account = await WalletAccount.findOne({ where: { id, tenant_id: req.user.tenant_id } });
     if (!account) return res.status(404).json({ success: false, message: 'Account not found' });
@@ -227,13 +434,66 @@ exports.updateAccount = async (req, res) => {
       if (existing) return res.status(400).json({ success: false, message: 'Wallet name already exists' });
     }
 
+    const newType = account_type || account.account_type;
+
+    // Validate credit card fields if type is Credit
+    if (newType === 'Credit') {
+      const newLimit = credit_limit !== undefined ? credit_limit : account.credit_limit;
+      const newBillDay = bill_day !== undefined ? bill_day : account.bill_day;
+      const newDueDay = due_day !== undefined ? due_day : account.due_day;
+
+      if (!newLimit || parseFloat(newLimit) <= 0) {
+        return res.status(400).json({ success: false, message: 'Credit limit is required for credit cards' });
+      }
+      if (!newBillDay || newBillDay < 1 || newBillDay > 31) {
+        return res.status(400).json({ success: false, message: 'Valid billing day (1-31) is required' });
+      }
+      if (!newDueDay || newDueDay < 1 || newDueDay > 31) {
+        return res.status(400).json({ success: false, message: 'Valid due day (1-31) is required' });
+      }
+    }
+
     await account.update({ 
       name: name || account.name, 
-      description: description !== undefined ? description : account.description 
+      description: description !== undefined ? description : account.description,
+      account_type: newType,
+      credit_limit: newType === 'Credit' ? (credit_limit !== undefined ? parseFloat(credit_limit) : account.credit_limit) : null,
+      bill_day: newType === 'Credit' ? (bill_day !== undefined ? parseInt(bill_day) : account.bill_day) : null,
+      due_day: newType === 'Credit' ? (due_day !== undefined ? parseInt(due_day) : account.due_day) : null
     });
     
     res.json({ success: true, data: account });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error updating wallet account.' });
   }
+};
+
+/**
+ * Check credit limit before an expense or invoice deduction
+ * Exported for use as a utility by other controllers
+ */
+exports.checkCreditAvailability = async (accountId, amount, transaction) => {
+  const account = await WalletAccount.findByPk(accountId, { transaction });
+  if (!account || account.account_type !== 'Credit') return { allowed: true };
+
+  const inSum = await WalletTransaction.sum('amount', {
+    where: { account_id: accountId, direction: 'In' },
+    transaction
+  }) || 0;
+  const outSum = await WalletTransaction.sum('amount', {
+    where: { account_id: accountId, direction: 'Out' },
+    transaction
+  }) || 0;
+
+  const outstanding = parseFloat(outSum) - parseFloat(inSum);
+  const creditLimit = parseFloat(account.credit_limit || 0);
+  const availableCredit = creditLimit - Math.max(0, outstanding);
+
+  if (amount > availableCredit) {
+    return { 
+      allowed: false, 
+      message: `Credit limit exceeded. Available credit: AED ${availableCredit.toFixed(2)} of AED ${creditLimit.toFixed(2)} limit.`
+    };
+  }
+  return { allowed: true, availableCredit };
 };

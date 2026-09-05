@@ -11,9 +11,20 @@ export const useWalletStore = defineStore('wallet', {
     },
     loading: false,
     summary: {
-      total_balance: 0
+      cash_total: 0,
+      debit_total: 0,
+      credit_outstanding: 0,
+      total_balance: 0,
+      net_worth: 0
     }
   }),
+  getters: {
+    cashAccounts: (state) => state.accounts.filter(a => a.account_type === 'Cash'),
+    debitAccounts: (state) => state.accounts.filter(a => a.account_type === 'Debit'),
+    creditAccounts: (state) => state.accounts.filter(a => a.account_type === 'Credit'),
+    // For dropdowns that need non-credit accounts (e.g., receiving payments)
+    nonCreditAccounts: (state) => state.accounts.filter(a => a.account_type !== 'Credit')
+  },
   actions: {
     async fetchAccounts() {
       this.loading = true;

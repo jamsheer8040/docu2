@@ -16,6 +16,10 @@ router.get('/:id', requirePermission('sales_orders', 'read'), salesOrderControll
 // Push Service Item to Execution
 router.post('/items/:itemId/push', requirePermission('sales_orders', 'write'), salesOrderController.pushService);
 
+// Confirm/Cancel Service Item (from Customer)
+const upload = require('../middleware/upload.middleware');
+router.post('/items/:itemId/confirm', requirePermission('sales_orders', 'write'), upload.single('attachment'), salesOrderController.confirmServiceItem);
+
 // Download Proforma PDF
 router.get('/:id/proforma-pdf', requirePermission('sales_orders', 'read'), salesOrderController.downloadProformaPDF);
 

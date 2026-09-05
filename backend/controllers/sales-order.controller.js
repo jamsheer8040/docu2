@@ -35,6 +35,43 @@ exports.getAllSalesOrders = async (req, res) => {
 };
 
 /**
+ * Confirm or Cancel Service Item (From Customer)
+ */
+exports.confirmServiceItem = async (req, res) => {
+  try {
+    const { action, notes } = req.body;
+    const itemId = req.params.itemId;
+
+    const item = await SalesOrderItem.findOne({
+      where: { id: itemId, tenant_id: req.user.tenant_id }
+    });
+
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Service Item not found' });
+    }
+
+    if (action === 'confirm') {
+      item.confirmed = true;
+      item.confirm_notes = notes || null;
+      if (req.file) {
+        item.confirm_attachment = `/uploads/documents/${req.file.filename}`;
+      }
+    } else if (action === 'cancel') {
+      item.cancelled = true;
+      item.cancel_notes = notes || null;
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid action' });
+    }
+
+    await item.save();
+    res.json({ success: true, message: `Service successfully ${action}ed` });
+  } catch (error) {
+    console.error('[SalesOrderController] Error confirming service:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
  * Get single Sales Order
  */
 exports.getSalesOrderById = async (req, res) => {
@@ -212,8 +249,17 @@ exports.deleteSalesOrder = async (req, res) => {
       });
     }
 
-    await salesOrder.destroy();
-    res.json({ success: true, message: 'Sales Order deleted successfully' });
+    const { sequelize, SalesOrderItem } = require('../models');
+    const t = await sequelize.transaction();
+    try {
+      await SalesOrderItem.destroy({ where: { sales_order_id: salesOrder.id, tenant_id: req.user.tenant_id }, transaction: t });
+      await salesOrder.destroy({ transaction: t });
+      await t.commit();
+      res.json({ success: true, message: 'Sales Order deleted successfully' });
+    } catch (dbError) {
+      await t.rollback();
+      throw dbError;
+    }
   } catch (error) {
     console.error('[SalesOrderController] Error deleting sales order:', error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -242,7 +288,7 @@ exports.downloadProformaPDF = async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Proforma_Invoice_${order.order_number}.pdf`);
 
-    generateProformaInvoicePDF(order, res);
+    await generateProformaInvoicePDF(order, req.user.tenant_id, res);
 
   } catch (error) {
     console.error('[SalesOrderController] Error generating Proforma PDF:', error);

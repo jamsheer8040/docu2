@@ -4,6 +4,7 @@ export const useDashboardStore = defineStore('dashboard', {
   state: () => ({
     stats: {
       total_customers: 0,
+      active_customers: 0,
       active_documents: 0,
       expiring_soon: 0,
       critical_count: 0,

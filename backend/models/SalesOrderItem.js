@@ -65,6 +65,10 @@ const SalesOrderItem = sequelize.define('SalesOrderItem', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  confirm_attachment: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   cancelled: {
     type: DataTypes.BOOLEAN,
     defaultValue: false

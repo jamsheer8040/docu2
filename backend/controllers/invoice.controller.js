@@ -132,6 +132,15 @@ exports.createInvoice = async (req, res) => {
 
         const invoiceNumber = await getNextInvoiceNumber(req.user.tenant_id);
         
+        let skipCostDeduction = false;
+        if (service_order_id) {
+            const ServiceOrder = require('../models/ServiceOrder');
+            const order = await ServiceOrder.findOne({ where: { id: service_order_id, tenant_id: req.user.tenant_id }, transaction });
+            if (order && order.is_cost_deducted) {
+                skipCostDeduction = true;
+            }
+        }
+
         // Calculate Totals
         let subtotal = 0;
         let costTotal = 0;
@@ -185,7 +194,7 @@ exports.createInvoice = async (req, res) => {
         if (invoice.status === 'Issued') {
             const { WalletTransaction, WalletAccount } = require('../models');
             for (const item of itemRecords) {
-                if (item.wallet_id && item.cost_price > 0) {
+                if (item.wallet_id && item.cost_price > 0 && !skipCostDeduction) {
                     const totalCost = parseFloat(item.cost_price) * parseInt(item.quantity);
                     if (totalCost > 0) {
                         await WalletTransaction.create({
@@ -228,7 +237,7 @@ exports.createInvoice = async (req, res) => {
                 // Sync status to SalesOrderItem
                 const SalesOrderItem = require('../models/SalesOrderItem');
                 const salesOrderItem = await SalesOrderItem.findOne({
-                    where: { service_order_id: order.id },
+                    where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
                     transaction
                 });
                 if (salesOrderItem) {
@@ -262,6 +271,15 @@ exports.updateInvoice = async (req, res) => {
 
         // Remove existing items
         await InvoiceItem.destroy({ where: { invoice_id: invoice.id }, transaction });
+        
+        let skipCostDeduction = false;
+        if (service_order_id) {
+            const ServiceOrder = require('../models/ServiceOrder');
+            const order = await ServiceOrder.findOne({ where: { id: service_order_id, tenant_id: req.user.tenant_id }, transaction });
+            if (order && order.is_cost_deducted) {
+                skipCostDeduction = true;
+            }
+        }
 
         // Calculate Totals
         let subtotal = 0;
@@ -304,7 +322,7 @@ exports.updateInvoice = async (req, res) => {
         if (invoice.status === 'Issued') {
             const { WalletTransaction, WalletAccount } = require('../models');
             for (const item of itemRecords) {
-                if (item.wallet_id && item.cost_price > 0) {
+                if (item.wallet_id && item.cost_price > 0 && !skipCostDeduction) {
                     const totalCost = parseFloat(item.cost_price) * parseInt(item.quantity);
                     if (totalCost > 0) {
                         await WalletTransaction.create({
@@ -354,7 +372,7 @@ exports.updateInvoice = async (req, res) => {
                 // Sync status to SalesOrderItem
                 const SalesOrderItem = require('../models/SalesOrderItem');
                 const salesOrderItem = await SalesOrderItem.findOne({
-                    where: { service_order_id: order.id },
+                    where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
                     transaction
                 });
                 if (salesOrderItem) {
@@ -422,7 +440,7 @@ exports.updateStatus = async (req, res) => {
             (invoice.status === 'Issued' || invoice.status === 'Paid' || invoice.status === 'Partially Paid')) {
             // Find ALL cost transactions for this invoice
             const costTransactions = await WalletTransaction.findAll({
-                where: { reference_id: invoice.id, reference_type: 'InvoiceCost', type: 'Expense' },
+                where: { reference_id: invoice.id, reference_type: 'InvoiceCost', type: 'Expense', tenant_id: req.user.tenant_id },
                 transaction
             });
 
@@ -492,7 +510,7 @@ exports.updateStatus = async (req, res) => {
         else if ((status === 'Draft' || status === 'Cancelled') && (invoice.status === 'Paid' || invoice.status === 'Partially Paid')) {
             // Find ALL income transactions for this invoice
             const incomeTransactions = await WalletTransaction.findAll({
-                where: { reference_id: invoice.id, reference_type: 'Invoice', type: 'Income' },
+                where: { reference_id: invoice.id, reference_type: 'Invoice', type: 'Income', tenant_id: req.user.tenant_id },
                 transaction
             });
 
@@ -533,8 +551,17 @@ exports.deleteInvoice = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Only Draft/Pending invoices can be deleted' });
         }
 
-        await invoice.destroy();
-        res.json({ success: true, message: 'Invoice deleted successfully' });
+        const { sequelize, InvoiceItem } = require('../models');
+        const t = await sequelize.transaction();
+        try {
+            await InvoiceItem.destroy({ where: { invoice_id: invoice.id, tenant_id: req.user.tenant_id }, transaction: t });
+            await invoice.destroy({ transaction: t });
+            await t.commit();
+            res.json({ success: true, message: 'Invoice deleted successfully' });
+        } catch (dbErr) {
+            await t.rollback();
+            throw dbErr;
+        }
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to delete invoice' });
     }

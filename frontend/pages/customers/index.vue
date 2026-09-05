@@ -10,14 +10,9 @@
             </div>
             <div class="text-right">
               <div class="text-caption font-weight-bold text-blue-grey-darken-1">Total Clients</div>
-              <div class="text-h4 font-weight-black text-blue-grey-darken-4">{{ dashboardStore.stats?.total_customers || 124 }}</div>
+              <div class="text-h4 font-weight-black text-blue-grey-darken-4">{{ dashboardStore.stats?.total_customers || 0 }}</div>
             </div>
           </div>
-          <!-- Mock Sparkline using simple SVG -->
-          <svg viewBox="0 0 100 20" class="mt-auto w-100" style="overflow: visible;">
-            <path d="M0,15 C20,15 30,5 50,10 C70,15 80,0 100,5" fill="none" stroke="rgba(147, 51, 234, 0.4)" stroke-width="2" />
-            <circle cx="100" cy="5" r="3" fill="#9333EA" />
-          </svg>
         </v-card>
       </v-col>
 
@@ -29,13 +24,9 @@
             </div>
             <div class="text-right">
               <div class="text-caption font-weight-bold text-blue-grey-darken-1">Active Now</div>
-              <div class="text-h4 font-weight-black text-blue-grey-darken-4">112</div>
+              <div class="text-h4 font-weight-black text-blue-grey-darken-4">{{ dashboardStore.stats?.active_customers || 0 }}</div>
             </div>
           </div>
-          <svg viewBox="0 0 100 20" class="mt-auto w-100" style="overflow: visible;">
-            <path d="M0,10 C20,15 40,15 60,8 C80,0 90,15 100,5" fill="none" stroke="rgba(34, 197, 94, 0.4)" stroke-width="2" />
-            <circle cx="100" cy="5" r="3" fill="#22C55E" />
-          </svg>
         </v-card>
       </v-col>
 
@@ -43,17 +34,13 @@
         <v-card class="glass-card-ethereal pa-5 d-flex flex-column" variant="flat">
           <div class="d-flex align-center justify-space-between mb-2">
             <div class="icon-glow-base icon-glow-blue" style="width: 56px; height: 56px;">
-              <v-icon icon="mdi-clock-outline" color="white" size="28"></v-icon>
+              <v-icon icon="mdi-file-document-outline" color="white" size="28"></v-icon>
             </div>
             <div class="text-right">
-              <div class="text-caption font-weight-bold text-blue-grey-darken-1">Pending Docs</div>
-              <div class="text-h4 font-weight-black text-blue-grey-darken-4">18</div>
+              <div class="text-caption font-weight-bold text-blue-grey-darken-1">Active Docs</div>
+              <div class="text-h4 font-weight-black text-blue-grey-darken-4">{{ dashboardStore.stats?.active_documents || 0 }}</div>
             </div>
           </div>
-          <svg viewBox="0 0 100 20" class="mt-auto w-100" style="overflow: visible;">
-            <path d="M0,15 C10,5 30,10 50,15 C70,20 80,5 100,10" fill="none" stroke="rgba(59, 130, 246, 0.4)" stroke-width="2" />
-            <circle cx="100" cy="10" r="3" fill="#3B82F6" />
-          </svg>
         </v-card>
       </v-col>
 
@@ -65,13 +52,9 @@
             </div>
             <div class="text-right">
               <div class="text-caption font-weight-bold text-blue-grey-darken-1">Action Required</div>
-              <div class="text-h4 font-weight-black text-blue-grey-darken-4">4</div>
+              <div class="text-h4 font-weight-black text-blue-grey-darken-4">{{ dashboardStore.stats?.critical_count || 0 }}</div>
             </div>
           </div>
-          <svg viewBox="0 0 100 20" class="mt-auto w-100" style="overflow: visible;">
-            <path d="M0,5 C20,10 40,5 60,15 C80,25 90,10 100,5" fill="none" stroke="rgba(249, 115, 22, 0.4)" stroke-width="2" />
-            <circle cx="100" cy="5" r="3" fill="#F97316" />
-          </svg>
         </v-card>
       </v-col>
     </v-row>
@@ -287,9 +270,7 @@ const fileInput = ref(null)
 const importing = ref(false)
 
 onMounted(() => {
-    if(!dashboardStore.stats) {
-        dashboardStore.fetchStats();
-    }
+    dashboardStore.fetchStats();
 });
 
 const triggerFileInput = () => {

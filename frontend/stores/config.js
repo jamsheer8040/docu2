@@ -7,7 +7,8 @@ export const useConfigStore = defineStore('config', {
       app_logo: '',
       license_expiry_date: null,
       is_tax_enabled: false,
-      tax_registration_number: ''
+      tax_registration_number: '',
+      wallet_deduction_point: 'invoice_creation'
     },
     loading: false
   }),
@@ -20,7 +21,8 @@ export const useConfigStore = defineStore('config', {
       return new Date() > new Date(state.settings.license_expiry_date);
     },
     isTaxEnabled: (state) => state.settings.is_tax_enabled === 'true' || state.settings.is_tax_enabled === true,
-    taxRegistrationNumber: (state) => state.settings.tax_registration_number || ''
+    taxRegistrationNumber: (state) => state.settings.tax_registration_number || '',
+    walletDeductionPoint: (state) => state.settings.wallet_deduction_point || 'invoice_creation'
   },
 
   actions: {

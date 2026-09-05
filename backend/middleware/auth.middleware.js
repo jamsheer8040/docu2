@@ -82,6 +82,42 @@ exports.verifyToken = async (req, res, next) => {
 exports.protect = exports.verifyToken;
 
 /**
+ * Middleware to optionally verify JWT token. 
+ * If no token is provided, it just calls next().
+ * If token is invalid, it just calls next().
+ */
+exports.optionalVerifyToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findByPk(decoded.id, {
+      include: [
+        { model: Role, attributes: ['name', 'permissions', 'type'] },
+        { model: Customer, as: 'LinkedCustomers', attributes: ['id', 'name'] },
+        { 
+          model: Tenant, 
+          attributes: ['id', 'name', 'status', 'subscription_ends_at', 'subscription_starts_at', 'trial_ends_at', 'billing_cycle', 'next_billing_date'],
+          include: [{ model: Plan }]
+        }
+      ]
+    });
+
+    if (user && user.is_active) {
+      req.user = user;
+    }
+    next();
+  } catch (err) {
+    next(); // Proceed as anonymous
+  }
+};
+
+/**
  * Middleware to restrict access by permission (e.g., 'invoices.write')
  */
 exports.requirePermission = (moduleName, accessType = 'read') => {

@@ -428,7 +428,7 @@ exports.getStaffNames = async (req, res) => {
     if (!customer_id) {
       const { User, Role } = require('../models');
       const users = await User.findAll({
-        where: { is_active: true },
+        where: { is_active: true, tenant_id: req.user.tenant_id },
         include: [{
           model: Role,
           where: {

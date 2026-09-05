@@ -171,13 +171,11 @@ const handleLogin = async () => {
 :deep(.soft-input .v-field__outline__end),
 :deep(.soft-input .v-field__outline__notch) {
   border-color: rgba(226, 232, 240, 0.8) !important;
-  border-width: 1px !important;
 }
 :deep(.soft-input .v-field--focused .v-field__outline__start),
 :deep(.soft-input .v-field--focused .v-field__outline__end),
 :deep(.soft-input .v-field--focused .v-field__outline__notch) {
   border-color: #6366F1 !important;
-  border-width: 1.5px !important;
 }
 
 /* Muted Icons and Text */

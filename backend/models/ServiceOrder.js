@@ -47,6 +47,11 @@ const ServiceOrder = sequelize.define('ServiceOrder', {
     defaultValue: 0,
     allowNull: false
   },
+  is_cost_deducted: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false
+  },
   tenant_id: {
     type: DataTypes.INTEGER,
     allowNull: false,

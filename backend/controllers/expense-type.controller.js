@@ -75,7 +75,7 @@ exports.deleteType = async (req, res) => {
         const type = await ExpenseType.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
         if (!type) return res.status(404).json({ success: false, message: 'Type not found' });
 
-        const subTypeCount = await ExpenseSubType.count({ where: { expense_type_id: type.id } });
+        const subTypeCount = await ExpenseSubType.count({ where: { tenant_id: req.user.tenant_id, expense_type_id: type.id } });
         if (subTypeCount > 0) {
             return res.status(400).json({ success: false, message: 'Cannot delete a type that has associated sub-types' });
         }

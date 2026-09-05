@@ -146,19 +146,33 @@ exports.getRevenueByService = async (req, res) => {
 exports.getExpenseByCategory = async (req, res) => {
     try {
         const dateWhere = getReportWhere(req);
+        const ExpenseSubType = require('../models/ExpenseSubType');
+        const ExpenseType = require('../models/ExpenseType');
         const results = await Expense.findAll({
             attributes: [
-                'category',
-                [fn('SUM', col('paid_amount')), 'total_amount']
+                [fn('SUM', col('Expense.paid_amount')), 'total_amount']
             ],
             where: { [Op.or]: [{ status: 'Paid' }, { status: 'Partially Paid' }], ...dateWhere },
-            group: ['category'],
+            include: [{
+                model: ExpenseSubType,
+                as: 'SubType',
+                attributes: ['sub_type_name'],
+                include: [{ model: ExpenseType, as: 'ParentType', attributes: ['type_name'] }]
+            }],
+            group: ['Expense.expense_sub_type_id', 'SubType.id', 'SubType.sub_type_name', 'SubType->ParentType.id', 'SubType->ParentType.type_name'],
             order: [[literal('total_amount'), 'DESC']]
         });
-        res.json({ success: true, data: results });
+        
+        // Format for frontend compatibility
+        const formatted = results.map(r => ({
+            category: r.SubType ? `${r.SubType.ParentType?.type_name || 'Other'} > ${r.SubType.sub_type_name}` : 'Uncategorized',
+            total_amount: r.getDataValue('total_amount')
+        }));
+        
+        res.json({ success: true, data: formatted });
     } catch (err) {
         console.error('getExpenseByCategory Error:', err);
-        res.status(500).json({ success: false, message: 'Failed expense breakdown' });
+        res.status(500).json({ success: false, message: 'Failed breakdown' });
     }
 };
 
@@ -342,7 +356,7 @@ exports.getBalanceSheet = async (req, res) => {
             // Opening balance logic: if all-time, it's 0 + all inflows - outflows. 
             // If there's a manual "Opening Balance" txn, we can extract it.
             const openingBalanceTx = await WalletTransaction.findOne({
-                where: { account_id: wallet.id, description: 'Opening Balance' }
+                where: { account_id: wallet.id, description: 'Opening Balance', tenant_id: req.user.tenant_id }
             });
             const openingBalance = openingBalanceTx ? parseFloat(openingBalanceTx.amount) : 0;
             

@@ -1,4 +1,4 @@
-const { DocumentType } = require('../models');
+const { DocumentType, Document } = require('../models');
 
 exports.list = async (req, res) => {
   try {
@@ -60,6 +60,16 @@ exports.update = async (req, res) => {
 exports.delete = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Dependency check
+    const count = await Document.count({ where: { document_type_id: id, tenant_id: req.user.tenant_id } });
+    if (count > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot delete a Document Type currently in use by ${count} document(s).` 
+      });
+    }
+
     await DocumentType.destroy({ where: { id, tenant_id: req.user.tenant_id } });
     res.json({ success: true, message: 'Document type deleted' });
   } catch (err) {

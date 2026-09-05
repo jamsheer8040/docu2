@@ -146,6 +146,7 @@ exports.deleteCustomer = async (req, res) => {
     // CHECK FOR ACTIVE SERVICE ORDERS
     const activeOrders = await ServiceOrder.count({
       where: {
+        tenant_id: req.user.tenant_id,
         customer_id: customer.id,
         status: { [Op.notIn]: ['Completed', 'Cancelled'] }
       }
@@ -161,6 +162,7 @@ exports.deleteCustomer = async (req, res) => {
     // CHECK FOR ACTIVE SALES ORDERS
     const activeSalesOrders = await SalesOrder.count({
       where: {
+        tenant_id: req.user.tenant_id,
         customer_id: customer.id
       },
       include: [{
@@ -182,6 +184,7 @@ exports.deleteCustomer = async (req, res) => {
     // CHECK FOR UNPAID INVOICES
     const unpaidInvoices = await Invoice.count({
       where: {
+        tenant_id: req.user.tenant_id,
         customer_id: customer.id,
         status: { [Op.notIn]: ['Paid', 'Cancelled'] }
       }

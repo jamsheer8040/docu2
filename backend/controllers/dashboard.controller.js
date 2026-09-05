@@ -59,6 +59,7 @@ exports.getStats = async (req, res) => {
     // Parallel execution for performance
     const [
       totalCustomers,
+      totalAllCustomers,
       activeDocuments,
       expiringSoon,
       criticalDocuments,
@@ -70,6 +71,7 @@ exports.getStats = async (req, res) => {
       wallets
     ] = await Promise.all([
       Customer.count({ where: { tenant_id: tenantId, is_active: true } }),
+      Customer.count({ where: { tenant_id: tenantId } }),
       Document.count({ where: whereDoc }),
       Document.count({ where: { ...whereDoc, expiry_date: { [Op.between]: [new Date(), thirtyDaysFromNow] } } }),
       Document.count({ where: { ...whereDoc, expiry_date: { [Op.between]: [new Date(), sevenDaysFromNow] } } }),
@@ -110,7 +112,8 @@ exports.getStats = async (req, res) => {
     res.json({
       success: true,
       data: {
-        total_customers: totalCustomers,
+        total_customers: totalAllCustomers,
+        active_customers: totalCustomers,
         active_documents: activeDocuments,
         expiring_soon: expiringSoon,
         critical_count: criticalDocuments,

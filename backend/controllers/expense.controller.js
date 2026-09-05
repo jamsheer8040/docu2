@@ -164,7 +164,7 @@ exports.updateExpense = async (req, res) => {
             // Reversal Transition: Paid/Partially Paid -> Unpaid
             if ((oldStatus === 'Paid' || oldStatus === 'Partially Paid') && newStatus === 'Unpaid') {
                 const transactions = await WalletTransaction.findAll({
-                    where: { reference_id: expense.id, reference_type: 'Expense', type: 'Expense' },
+                    where: { reference_id: expense.id, reference_type: 'Expense', type: 'Expense', tenant_id: req.user.tenant_id },
                     transaction
                 });
 

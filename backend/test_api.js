@@ -1,1 +1,21 @@
-﻿const { sequelize, User, Role } = require("./models"); const { getCustomers } = require("./controllers/customer.controller.js"); async function run() { const user = await User.findOne({ where: { email: 'ashraf15@gmail.com' }, include: [{ model: Role }] }); const req = { query: { limit: 1000 }, user: user }; const res = { json: (data) => console.log(data), status: (code) => ({ json: (data) => console.log(code, data) }) }; await getCustomers(req, res); process.exit(0); } run();
+async function run() {
+    try {
+        const { User } = require('./models');
+        const user = await User.findOne({ where: { email: 'admin@docclear.com' } });
+        if(!user) {
+            console.log('No user'); return;
+        }
+        const jwt = require('jsonwebtoken');
+        const token = jwt.sign({ id: user.id, email: user.email, tenant_id: user.tenant_id }, process.env.JWT_SECRET || 'docclear_secret_key_2024');
+        
+        const res = await fetch('http://localhost:3000/api/v1/config', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        console.log(JSON.stringify(data, null, 2));
+    } catch(e) {
+        console.error(e.message);
+    }
+    process.exit(0);
+}
+run();

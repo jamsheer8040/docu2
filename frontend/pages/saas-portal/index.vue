@@ -254,7 +254,7 @@
                 <v-file-input v-model="logoFile" label="Upload Application Logo" accept="image/*" prepend-icon="" prepend-inner-icon="mdi-camera" class="mb-2" hint="Select an image to upload as the new logo" persistent-hint></v-file-input>
                 <div v-if="globalSettings.app_logo" class="mb-4 px-2">
                   <div class="text-caption text-secondary mb-1">Current Logo:</div>
-                  <img :src="globalSettings.app_logo" alt="Current Logo" style="max-height: 60px; object-fit: contain;" />
+                  <img :src="globalSettings.app_logo" alt="Current Logo" style="max-height: 60px; object-fit: contain; mix-blend-mode: multiply;" />
                 </div>
                 
                 <v-divider class="my-6"></v-divider>

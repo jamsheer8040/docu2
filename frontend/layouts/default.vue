@@ -13,12 +13,13 @@
     >
       <div class="pa-4 h-100 d-flex flex-column bg-transparent">
           <div class="d-flex flex-column align-center text-center cursor-pointer" @click="navigateTo('/')">
-            <div v-if="configStore.appLogo" class="mb-2 d-flex align-center justify-center p-2 rounded-xl" style="width: 100%; height: 80px; background: rgba(255,255,255,0.4);">
+            <div v-if="configStore.appLogo" class="mb-2 d-flex align-center justify-center p-2" style="width: 100%; height: 80px;">
                <v-img 
                  :src="configStore.appLogo"
                  width="140"
                  height="70"
                  contain
+                 style="mix-blend-mode: multiply;"
                ></v-img>
             </div>
             <v-avatar v-else color="primary" variant="flat" rounded="lg" size="56" class="mb-2">

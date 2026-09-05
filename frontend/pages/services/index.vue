@@ -113,7 +113,7 @@
                 <v-card v-for="order in groupedOrders.Pending" :key="order.id" class="mb-3 order-card" :class="'criticality-border-' + order.criticality" border>
                   <v-card-text class="pa-3">
                     <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ order.id }}</span>
+                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
                       <div class="d-flex align-center gap-1">
                         <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
                         <v-icon
@@ -185,7 +185,7 @@
                 <v-card v-for="order in groupedOrders['In Progress']" :key="order.id" class="mb-3 order-card" :class="'criticality-border-' + order.criticality" border>
                   <v-card-text class="pa-3">
                     <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ order.id }}</span>
+                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
                       <div class="d-flex align-center gap-1">
                         <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
                         <v-icon
@@ -260,7 +260,7 @@
                 <v-card v-for="order in groupedOrders.CompletedInvoicePending" :key="order.id" class="mb-3 order-card" border>
                   <v-card-text class="pa-3">
                     <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ order.id }}</span>
+                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
                       <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
                     </div>
                     <div class="text-body-2 font-weight-bold mb-1">{{ order.Customer?.name }}</div>
@@ -317,7 +317,7 @@
                 <v-card v-for="order in groupedOrders.CompletedInvoiceCreated" :key="order.id" class="mb-3 order-card opacity-80" border>
                   <v-card-text class="pa-3">
                     <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ order.id }}</span>
+                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
                       <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
                     </div>
                     <div class="text-body-2 font-weight-bold mb-1 opacity-70">{{ order.Customer?.name }}</div>
@@ -368,7 +368,7 @@
                 <v-card v-for="order in groupedOrders.Cancelled" :key="order.id" class="mb-3 order-card grayscale opacity-60" border>
                   <v-card-text class="pa-3">
                     <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ order.id }}</span>
+                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
                       <v-chip size="x-small" color="error" variant="flat">Cancelled</v-chip>
                     </div>
                     <div class="text-body-2 font-weight-bold mb-1">{{ order.Customer?.name }}</div>
@@ -584,6 +584,36 @@
       @confirm="executeOrderCompletion"
     />
 
+    <!-- Completion Wallet Dialog -->
+    <v-dialog v-model="completionWalletDialog.show" max-width="500px" persistent>
+      <v-card class="soft-card pa-4">
+        <v-card-title class="text-h5 font-weight-bold d-flex align-center">
+          <v-icon icon="mdi-wallet-outline" color="primary" class="mr-2"></v-icon>
+          Select Wallet for Service Cost
+        </v-card-title>
+        <v-card-text class="mt-4">
+          <p class="mb-4 text-grey-darken-1">Please select the wallet to deduct the service cost from.</p>
+          <v-select
+            v-model="completionWalletDialog.selectedWallet"
+            :items="walletStore.accounts"
+            item-title="name"
+            item-value="id"
+            label="Wallet Account"
+            variant="outlined"
+            prepend-inner-icon="mdi-wallet"
+            :rules="[v => !!v || 'Wallet selection is required']"
+          ></v-select>
+        </v-card-text>
+        <v-card-actions class="pb-4">
+          <v-spacer></v-spacer>
+          <v-btn variant="text" rounded="lg" @click="completionWalletDialog.show = false">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" rounded="lg" class="px-8" :loading="serviceStore.loading" @click="executeOrderCompletionWithWallet" :disabled="!completionWalletDialog.selectedWallet">
+            Complete Service
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="4000">
       {{ snackbar.text }}
       <template v-slot:actions>
@@ -603,10 +633,14 @@ import ConfirmDialog from '~/components/common/ConfirmDialog.vue';
 import InvoiceDialog from '~/components/invoices/InvoiceDialog.vue';
 import InvoiceDetailView from '~/components/invoices/InvoiceDetailView.vue';
 import { useWhatsApp } from '~/composables/useWhatsApp';
+import { useConfigStore } from '~/stores/config';
+import { useWalletStore } from '~/stores/wallet';
 
 // ─── Stores ───────────────────────────────────────────────────────────────────
 const serviceStore = useServiceStore();
 const auth = useAuthStore();
+const configStore = useConfigStore();
+const walletStore = useWalletStore();
 const { openWhatsApp } = useWhatsApp();
 
 // ─── UI State ─────────────────────────────────────────────────────────────────
@@ -626,6 +660,7 @@ const criticalityFilter = ref('All');
 
 const snackbar = reactive({ show: false, text: '', color: 'success' });
 const confirmDialog = reactive({ show: false, title: '', message: '', confirmText: 'Confirm' });
+const completionWalletDialog = reactive({ show: false, selectedWallet: null });
 
 // ─── Status Options ────────────────────────────────────────────────────────────
 const statusOptions = [
@@ -704,8 +739,11 @@ const fetchData = async () => {
   if (sortBy.value === 'criticality') {
     params.sort = 'criticality';
   }
-  await serviceStore.fetchServiceOrders(params);
-  await serviceStore.fetchServiceTypes({ limit: 1000 });
+  if (auth.can('services', 'read')) {
+    await serviceStore.fetchServiceOrders(params);
+    await serviceStore.fetchServiceTypes({ limit: 1000 });
+    await walletStore.fetchAccounts();
+  }
 };
 
 onMounted(fetchData);
@@ -771,6 +809,13 @@ const onSettingsError = (message) => {
 // ─── Completion Flow ──────────────────────────────────────────────────────────
 const confirmOrderCompletion = (order) => {
   selectedOrderForCompletion.value = order;
+  
+  if (configStore.walletDeductionPoint === 'service_completion' && !order.is_cost_deducted) {
+    completionWalletDialog.selectedWallet = null;
+    completionWalletDialog.show = true;
+    return;
+  }
+  
   const invoiceExists = hasInvoice(order);
   confirmDialog.title = 'Complete Service?';
   confirmDialog.confirmText = 'Complete Service';
@@ -792,6 +837,19 @@ const executeOrderCompletion = async () => {
   }
 };
 
+const executeOrderCompletionWithWallet = async () => {
+  if (!completionWalletDialog.selectedWallet) return;
+  if (!selectedOrderForCompletion.value) return;
+  try {
+    const res = await serviceStore.updateOrderStatus(selectedOrderForCompletion.value.id, 'Completed', completionWalletDialog.selectedWallet);
+    completionWalletDialog.show = false;
+    showSnackbar(res?.message || 'Service completed!', 'success');
+    selectedOrderForCompletion.value = null;
+  } catch (err) {
+    showSnackbar(err.message || 'Failed to complete order', 'error');
+  }
+};
+
 // ─── Revert ───────────────────────────────────────────────────────────────────
 const revertOrder = async (order) => {
   try {
@@ -804,7 +862,7 @@ const revertOrder = async (order) => {
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
 const confirmDeleteOrder = async (order) => {
-  if (confirm(`Delete Service Order #${order.id}?`)) {
+  if (confirm(`Delete Service Order #${String(order.id).padStart(5, '0')}?`)) {
     try {
       await serviceStore.deleteServiceOrder(order.id);
       showSnackbar('Order deleted');
