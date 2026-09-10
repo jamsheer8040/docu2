@@ -10,48 +10,18 @@
     </v-card-title>
 
     <v-card-text>
-      <!-- Invoice Type Toggle -->
-      <v-row class="mb-6" v-if="!isEdit">
-        <v-col cols="12" class="d-flex justify-center">
-          <v-btn-toggle
-            v-model="invoiceType"
-            mandatory
-            color="primary"
-            variant="text"
-            density="comfortable"
-            class="d-flex gap-2"
-          >
-            <v-btn
-              value="service"
-              rounded="lg"
-              class="px-6 font-weight-bold border"
-              :variant="invoiceType === 'service' ? 'flat' : 'outlined'"
-              prepend-icon="mdi-briefcase-outline"
-            >
-              Service Invoice
-            </v-btn>
-            <v-btn
-              value="manual"
-              rounded="lg"
-              class="px-6 font-weight-bold border"
-              :variant="invoiceType === 'manual' ? 'flat' : 'outlined'"
-              prepend-icon="mdi-pencil-box-outline"
-            >
-              Manual Invoice
-            </v-btn>
-          </v-btn-toggle>
-        </v-col>
-      </v-row>
-
       <v-form ref="form" v-model="valid">
         <v-row>
-          <!-- If Service Invoice: Service Order Selection -->
-          <v-col cols="12" md="6" v-if="invoiceType === 'service'">
+          <!-- Service Order Selection -->
+          <v-col cols="12" md="6">
             <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Choose Service Order *</label>
             <v-autocomplete
-              v-model="state.service_order_id"
-              :items="serviceOrders"
-              :item-title="item => `${item.Customer?.name} - ${item.ServiceType?.name} (${item.status})`"
+              v-model="state.service_order_ids"
+              :items="filteredServiceOrders"
+              multiple
+              chips
+              closable-chips
+              :item-title="item => `#${String(item.id).padStart(5, '0')} - ${item.Customer?.name} - ${item.ServiceType?.name} (${item.status})`"
               item-value="id"
               placeholder="Search active assigned service"
               :rules="[v => !!v || 'Service Order is required']"
@@ -79,8 +49,8 @@
               class="soft-input"
               bg-color="transparent"
               :loading="loadingCustomers"
-              :readonly="invoiceType === 'service'"
-              :hint="invoiceType === 'service' ? 'Automatically set from Service Order' : ''"
+              :readonly="state.service_order_ids.length > 0"
+              :hint="state.service_order_ids.length > 0 ? 'Automatically locked to selected Service Orders' : ''"
               persistent-hint
             ></v-autocomplete>
           </v-col>
@@ -106,7 +76,6 @@
           <div class="text-subtitle-1 font-weight-bold">Invoice Items (Internal View)</div>
           <v-spacer></v-spacer>
           <v-btn
-            v-if="invoiceType === 'manual'"
             prepend-icon="mdi-plus"
             variant="tonal"
             color="primary"
@@ -119,14 +88,28 @@
 
         <div v-for="(item, index) in state.items" :key="index" class="item-row mb-4 pa-4 soft-card">
           <v-row dense align="center">
-            <!-- Item selection from catalog (For Manual Invoice) -->
-            <v-col cols="12" md="3" v-if="invoiceType === 'manual'">
+            <v-col cols="12" md="3">
               <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Item / Service Name *</label>
-              <v-combobox
+              
+              <!-- Read-only text field for items generated from a Service Order -->
+              <v-text-field
+                v-if="item.service_order_id"
+                v-model="item.description"
+                readonly
+                hide-details="auto"
+                class="soft-input bg-grey-lighten-4"
+                variant="outlined"
+                density="comfortable"
+              ></v-text-field>
+              
+              <!-- Autocomplete strictly from catalog for manual items -->
+              <v-autocomplete
+                v-else
                 v-model="item.selectedItem"
                 :items="serviceTypes"
                 item-title="name"
-                placeholder="Select from existing catalog or type custom name"
+                return-object
+                placeholder="Select from catalog"
                 :rules="[v => !!v || 'Item name is required']"
                 hide-details="auto"
                 variant="outlined"
@@ -134,22 +117,7 @@
                 class="soft-input"
                 bg-color="transparent"
                 @update:model-value="(val) => onItemCatalogSelected(index, val)"
-              ></v-combobox>
-            </v-col>
-
-            <!-- Text Field Description (For Service Invoice or read-only display) -->
-            <v-col cols="12" md="3" v-else>
-              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Description *</label>
-              <v-text-field
-                v-model="item.description"
-                placeholder="Service Description"
-                :rules="[v => !!v || 'Required']"
-                hide-details="auto"
-                class="soft-input"
-                variant="outlined"
-                density="comfortable"
-                bg-color="transparent"
-              ></v-text-field>
+              ></v-autocomplete>
             </v-col>
 
             <v-col cols="12" md="1">
@@ -201,9 +169,9 @@
                  <div class="font-weight-bold text-subtitle-1">AED {{ item.selling_price.toFixed(2) }}</div>
               </div>
             </v-col>
-            <v-col cols="12" md="1" class="text-right" v-if="invoiceType === 'manual'">
+            <v-col cols="12" md="1" class="text-right">
               <v-btn
-                v-if="state.items.length > 1"
+                v-if="!item.service_order_id && state.items.length > 1"
                 icon="mdi-minus-circle-outline"
                 variant="text"
                 color="error"
@@ -214,23 +182,60 @@
           </v-row>
 
           <!-- Second Row for VAT and Wallet Selection -->
+          <!-- Only show Cost Payment options when:
+               - deduction_point is 'invoice_creation' AND
+               - cost was NOT already deducted at service completion -->
           <v-row dense align="center" class="mt-2">
-            <v-col cols="12" md="3">
-              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Cost Payment Wallet</label>
+            <v-col cols="12" md="4" v-if="showWalletSelection(item)">
+              <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">Cost Deduction Method</label>
+              <div class="d-flex align-center gap-2 mb-2">
+                <v-btn-toggle v-model="item.cost_type" mandatory color="primary" variant="tonal" density="compact" class="flex-grow-1" :disabled="item.cost_price <= 0">
+                  <v-btn value="Wallet" class="text-caption font-weight-bold">Wallet</v-btn>
+                  <v-btn value="Supplier" class="text-caption font-weight-bold">Supplier</v-btn>
+                </v-btn-toggle>
+              </div>
+
               <v-autocomplete
+                v-if="item.cost_type === 'Wallet'"
                 v-model="item.wallet_id"
                 :items="wallets"
                 item-title="name"
                 item-value="id"
-                placeholder="Select wallet for cost deduction"
+                placeholder="Select wallet"
                 variant="outlined"
                 density="compact"
                 hide-details="auto"
                 class="soft-input"
                 bg-color="transparent"
                 :disabled="item.cost_price <= 0"
-                :rules="item.cost_price > 0 ? [v => !!v || 'Required when cost > 0'] : []"
+                :rules="item.cost_price > 0 && item.cost_type === 'Wallet' ? [v => !!v || 'Required'] : []"
               ></v-autocomplete>
+
+              <v-autocomplete
+                v-if="item.cost_type === 'Supplier'"
+                v-model="item.cost_supplier_id"
+                :items="suppliersList"
+                item-title="name"
+                item-value="id"
+                placeholder="Select supplier"
+                variant="outlined"
+                density="compact"
+                hide-details="auto"
+                class="soft-input"
+                bg-color="transparent"
+                :disabled="item.cost_price <= 0"
+                :rules="item.cost_price > 0 && item.cost_type === 'Supplier' ? [v => !!v || 'Required'] : []"
+              ></v-autocomplete>
+            </v-col>
+            <v-col cols="12" md="4" v-else-if="item.is_cost_deducted">
+              <v-chip color="success" size="small" variant="tonal" prepend-icon="mdi-check-circle" class="mt-4">
+                Cost already deducted <span v-if="item.deducted_wallet_name" class="ml-1 font-weight-bold">(✓ {{ item.deducted_wallet_name.substring(0, 4).toUpperCase() }})</span>
+              </v-chip>
+            </v-col>
+            <v-col cols="12" md="4" v-else-if="item.service_order_id && !item.is_cost_deducted && configStore.walletDeductionPoint === 'service_completion'">
+              <v-chip color="info" size="small" variant="tonal" prepend-icon="mdi-clock-outline" class="mt-4">
+                Cost will be deducted at Service Completion
+              </v-chip>
             </v-col>
             <v-col cols="12" md="2" v-if="configStore.isTaxEnabled">
               <label class="text-caption font-weight-bold text-slate-700 mb-1 ml-1 d-block">VAT Rate</label>
@@ -361,6 +366,7 @@ const customers = ref([]);
 const serviceOrders = ref([]);
 const serviceTypes = ref([]);
 const wallets = ref([]);
+const suppliersList = ref([]);
 const taxes = ref([
   { name: 'VAT 5%', rate: 5 },
   { name: 'No VAT', rate: 0 }
@@ -373,9 +379,9 @@ const valid = ref(false);
 const form = ref(null);
 
 const isEdit = !!props.invoice;
-const invoiceType = ref('service'); // 'service' or 'manual'
 
 const getEmptyItem = () => ({ 
+  service_order_id: null,
   selectedItem: '', 
   description: '', 
   quantity: 1, 
@@ -385,16 +391,20 @@ const getEmptyItem = () => ({
   vat_percentage: 0, 
   vat_amount: 0, 
   total: 0,
-  wallet_id: null
+  cost_type: 'Wallet',
+  wallet_id: null,
+  cost_supplier_id: null,
+  is_cost_deducted: false,
+  deducted_wallet_name: ''
 });
 
 const state = reactive({
   customer_id: null,
-  service_order_id: null,
+  service_order_ids: [],
   due_date: new Date().toISOString().substring(0, 10),
   notes: '',
-  discount: 0, // Not heavily used in service invoices but kept for compatibility
-  tax: 0, // Represents global tax if used, but we calculate based on items now
+  discount: 0, 
+  tax: 0, 
   items: [getEmptyItem()]
 });
 
@@ -438,12 +448,11 @@ const calculateSellingPrice = (serviceType, customer) => {
   return targetPricing ? parseFloat(targetPricing.selling_price) : cost;
 };
 
-// Handle tab switches
-watch(invoiceType, (newType) => {
-  if (isEdit) return;
-  state.service_order_id = null;
-  state.customer_id = props.prefilledCustomerId ? parseInt(props.prefilledCustomerId) : null;
-  state.items = [getEmptyItem()];
+
+
+const filteredServiceOrders = computed(() => {
+  if (!state.customer_id) return serviceOrders.value;
+  return serviceOrders.value.filter(o => o.customer_id === state.customer_id);
 });
 
 const fetchData = async () => {
@@ -483,6 +492,11 @@ const fetchData = async () => {
     if (r.data?.success) wallets.value = r.data.data;
   });
 
+  // Fetch Suppliers
+  $api.get('/suppliers', { params: { limit: 100, is_active: 'true' } }).then(r => {
+    if (r.data?.success) suppliersList.value = r.data.data;
+  });
+
   // Fetch Taxes
   $api.get('/taxes').then(r => {
     if (r.data?.success && r.data.data.length > 0) taxes.value = r.data.data.map(t => ({ name: t.name, rate: parseFloat(t.rate) }));
@@ -493,10 +507,9 @@ onMounted(() => {
   fetchData();
 
   if (isEdit) {
-      invoiceType.value = props.invoice.service_order_id ? 'service' : 'manual';
       Object.assign(state, {
           customer_id: props.invoice.customer_id,
-          service_order_id: props.invoice.service_order_id,
+          service_order_ids: [], // We don't fully support editing multi-service yet via dropdown, but handled on backend.
           due_date: props.invoice.due_date,
           notes: props.invoice.notes || '',
           discount: parseFloat(props.invoice.discount) || 0,
@@ -514,13 +527,14 @@ onMounted(() => {
                   vat_percentage: parseFloat(i.vat_percentage || 0),
                   vat_amount: parseFloat(i.vat_amount || 0),
                   total: parseFloat(i.total),
-                  wallet_id: i.wallet_id
+                  cost_type: i.cost_type || 'Wallet',
+                  wallet_id: i.wallet_id,
+                  cost_supplier_id: i.cost_supplier_id
               };
           })
       });
   } else if (props.prefilledServiceOrderId) {
-      invoiceType.value = 'service';
-      state.service_order_id = parseInt(props.prefilledServiceOrderId);
+      state.service_order_ids = [parseInt(props.prefilledServiceOrderId)];
   } else if (props.prefilledCustomerId) {
       state.customer_id = parseInt(props.prefilledCustomerId);
   }
@@ -528,30 +542,68 @@ onMounted(() => {
 
 watch(serviceOrders, (newOrders) => {
   if (props.prefilledServiceOrderId && newOrders.length > 0 && !state.customer_id) {
-    onServiceOrderSelected(parseInt(props.prefilledServiceOrderId));
+    onServiceOrderSelected([parseInt(props.prefilledServiceOrderId)]);
   }
 }, { immediate: true });
 
-const onServiceOrderSelected = (orderId) => {
-  if (!orderId) return;
-  const order = serviceOrders.value.find(o => o.id === orderId);
-  if (!order) return;
+const onServiceOrderSelected = (orderIds) => {
+  if (!orderIds || orderIds.length === 0) {
+    state.items = [getEmptyItem()];
+    state.customer_id = null;
+    return;
+  }
 
-  const customer = customers.value.find(c => c.id === order.customer_id);
-  const sellingPrice = calculateSellingPrice(order.ServiceType, customer);
-  const costPrice = parseFloat(order.ServiceType?.cost_price || 0);
-  const serviceCharge = sellingPrice > costPrice ? sellingPrice - costPrice : 0;
+  // Preserve existing items to keep wallet selections
+  const oldItemsMap = {};
+  state.items.forEach(item => {
+    if (item.service_order_id) {
+      oldItemsMap[item.service_order_id] = item;
+    }
+  });
 
-  state.customer_id = order.customer_id;
+  const newItems = [];
   
-  const newItem = getEmptyItem();
-  newItem.description = order.ServiceType?.name || '';
-  newItem.cost_price = costPrice;
-  newItem.service_charge = serviceCharge;
-  newItem.selling_price = sellingPrice;
-  
-  state.items = [newItem];
-  calculateRow(0);
+  orderIds.forEach((orderId, index) => {
+    const order = serviceOrders.value.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (index === 0) {
+      state.customer_id = order.customer_id; // Lock to first customer
+    }
+
+    const customer = customers.value.find(c => c.id === order.customer_id);
+    const sellingPrice = calculateSellingPrice(order.ServiceType, customer);
+    const costPrice = parseFloat(order.ServiceType?.cost_price || 0);
+    const serviceCharge = sellingPrice > costPrice ? sellingPrice - costPrice : 0;
+
+    let desc = order.ServiceType?.name || '';
+    if (order.is_cost_deducted && order.deducted_wallet_name) {
+      desc += ` ✓ ${order.deducted_wallet_name.substring(0, 4).toUpperCase()}`;
+    }
+    
+    // Check if we already had this service in the list to preserve wallet selection
+    let newItem = getEmptyItem();
+    if (oldItemsMap[orderId]) {
+      newItem = oldItemsMap[orderId];
+    }
+
+    newItem.service_order_id = orderId;
+    newItem.description = desc;
+    newItem.cost_price = costPrice;
+    newItem.service_charge = serviceCharge;
+    newItem.selling_price = sellingPrice;
+    newItem.is_cost_deducted = !!order.is_cost_deducted;
+    newItem.deducted_wallet_name = order.deducted_wallet_name || '';
+
+    newItems.push(newItem);
+  });
+
+  // Re-add preserved manual items at the bottom
+  const manualItems = state.items.filter(i => !i.service_order_id && (i.description || i.selectedItem));
+  newItems.push(...manualItems);
+
+  state.items = newItems.length > 0 ? newItems : [getEmptyItem()];
+  state.items.forEach((_, i) => calculateRow(i));
 };
 
 const onItemCatalogSelected = (index, value) => {
@@ -592,8 +644,21 @@ const calculateRow = (index) => {
     
     const vatRate = parseFloat(item.vat_percentage) || 0;
     item.vat_amount = parseFloat(((totalSelling * vatRate) / 100).toFixed(2));
-    
     item.total = totalSelling + item.vat_amount;
+};
+
+const showWalletSelection = (item) => {
+    // Manual items always show wallet dropdown if they have a cost
+    if (!item.service_order_id) return true;
+    
+    // If it's already deducted at the Kanban, never show it again
+    if (item.is_cost_deducted) return false;
+    
+    // If policy is service completion, strictly hide from invoice level
+    if (configStore.walletDeductionPoint === 'service_completion') return false;
+    
+    // Otherwise, check the global deduction point setting
+    return configStore.walletDeductionPoint === 'invoice_creation';
 };
 
 const save = async (status) => {

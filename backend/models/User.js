@@ -24,6 +24,10 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  avatar: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   role_id: {
     type: DataTypes.INTEGER,
     allowNull: true,
@@ -37,6 +41,54 @@ const User = sequelize.define('User', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true
+  },
+  phone: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
+  address: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  home_country_address: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  home_country_contact: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
+  home_country_alternate_contact: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
+  designation: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  joining_date: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
+  basic_salary: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
+  },
+  hr_allowance: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
+  },
+  other_allowances: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
+  },
+  total_salary: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00
   },
   tenant_id: {
     type: DataTypes.INTEGER,

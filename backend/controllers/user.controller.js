@@ -1,5 +1,35 @@
-const { User, Role, Customer } = require('../models');
+const { User, Role, Customer, StaffDocument, DocumentType } = require('../models');
 const { validationResult } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Multer Storage Config for Avatars
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = './uploads/avatars';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+exports.upload = multer({ 
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|webp/;
+    const meta = allowed.test(file.mimetype);
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    if (meta && ext) return cb(null, true);
+    cb(new Error('Only images (jpg, png, webp) are allowed.'));
+  }
+});
 
 exports.getUsers = async (req, res) => {
   try {
@@ -13,13 +43,49 @@ exports.getUsers = async (req, res) => {
       attributes: { exclude: ['password_hash'] },
       include: [
         { model: Role, attributes: ['name', 'permissions', 'type'] },
-        { model: Customer, as: 'LinkedCustomers', attributes: ['id', 'name'] }
+        { model: Customer, as: 'LinkedCustomers', attributes: ['id', 'name'] },
+        {
+          model: StaffDocument,
+          as: 'StaffDocuments',
+          attributes: ['id', 'expiry_date', 'document_type_id']
+        }
       ],
       order: [['name', 'ASC']]
     });
     res.json({ success: true, data: users });
   } catch (err) {
+    console.error('[User Controller] getUsers error:', err);
     res.status(500).json({ success: false, message: 'Error fetching users.' });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findOne({
+      where: { id: req.params.id, tenant_id: req.user.tenant_id },
+      attributes: { exclude: ['password_hash'] },
+      include: [
+        { model: Role, attributes: ['id', 'name', 'permissions', 'type'] },
+        { model: Customer, as: 'LinkedCustomers', attributes: ['id', 'name'] },
+        {
+          model: StaffDocument,
+          as: 'StaffDocuments',
+          include: [{ model: DocumentType, as: 'DocumentType', attributes: ['id', 'name', 'category'] }]
+        }
+      ],
+      order: [
+        [{ model: StaffDocument, as: 'StaffDocuments' }, 'expiry_date', 'ASC']
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    res.json({ success: true, data: user });
+  } catch (err) {
+    console.error('[User Controller] getUserById error:', err);
+    res.status(500).json({ success: false, message: 'Error fetching user details.' });
   }
 };
 
@@ -30,12 +96,35 @@ exports.createUser = async (req, res) => {
   }
 
   try {
-    const { name, email, password, role_id, customer_ids } = req.body;
+    const {
+      name, email, password, role_id, customer_ids,
+      phone, address, home_country_address, home_country_contact, home_country_alternate_contact,
+      designation, joining_date, basic_salary, hr_allowance, other_allowances, total_salary
+    } = req.body;
+
+    const basic = parseFloat(basic_salary) || 0;
+    const hr = parseFloat(hr_allowance) || 0;
+    const other = parseFloat(other_allowances) || 0;
+    const computedTotal = (total_salary !== undefined && total_salary !== null && total_salary !== '')
+      ? parseFloat(total_salary)
+      : (basic + hr + other);
+
     const user = await User.create({
       name,
       email,
       password_hash: password, // hooks hash it
       role_id,
+      phone: phone || null,
+      address: address || null,
+      home_country_address: home_country_address || null,
+      home_country_contact: home_country_contact || null,
+      home_country_alternate_contact: home_country_alternate_contact || null,
+      designation: designation || null,
+      joining_date: joining_date || null,
+      basic_salary: basic,
+      hr_allowance: hr,
+      other_allowances: other,
+      total_salary: computedTotal,
       tenant_id: req.user.tenant_id
     });
 
@@ -47,7 +136,12 @@ exports.createUser = async (req, res) => {
       attributes: { exclude: ['password_hash'] },
       include: [
         { model: Role, attributes: ['name', 'permissions', 'type'] },
-        { model: Customer, as: 'LinkedCustomers', attributes: ['id', 'name'] }
+        { model: Customer, as: 'LinkedCustomers', attributes: ['id', 'name'] },
+        {
+          model: StaffDocument,
+          as: 'StaffDocuments',
+          include: [{ model: DocumentType, as: 'DocumentType', attributes: ['id', 'name', 'category'] }]
+        }
       ]
     });
 
@@ -56,6 +150,7 @@ exports.createUser = async (req, res) => {
     if (err.name === 'SequelizeUniqueConstraintError') {
       return res.status(400).json({ success: false, message: 'Email already in use.' });
     }
+    console.error('[User Controller] createUser error:', err);
     res.status(500).json({ success: false, message: 'Error creating user.' });
   }
 };
@@ -67,10 +162,38 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
-    const { name, email, password, role_id, customer_ids, is_active } = req.body;
-    const updateData = { name, email, role_id, is_active };
-    if (password) {
-      updateData.password_hash = password;
+    const {
+      name, email, password, role_id, customer_ids, is_active,
+      phone, address, home_country_address, home_country_contact, home_country_alternate_contact,
+      designation, joining_date, basic_salary, hr_allowance, other_allowances, total_salary
+    } = req.body;
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (role_id !== undefined) updateData.role_id = role_id;
+    if (is_active !== undefined) updateData.is_active = is_active;
+    if (password) updateData.password_hash = password;
+
+    if (phone !== undefined) updateData.phone = phone;
+    if (address !== undefined) updateData.address = address;
+    if (home_country_address !== undefined) updateData.home_country_address = home_country_address;
+    if (home_country_contact !== undefined) updateData.home_country_contact = home_country_contact;
+    if (home_country_alternate_contact !== undefined) updateData.home_country_alternate_contact = home_country_alternate_contact;
+    if (designation !== undefined) updateData.designation = designation;
+    if (joining_date !== undefined) updateData.joining_date = joining_date || null;
+
+    if (basic_salary !== undefined || hr_allowance !== undefined || other_allowances !== undefined || total_salary !== undefined) {
+      const basic = basic_salary !== undefined ? parseFloat(basic_salary) || 0 : parseFloat(user.basic_salary) || 0;
+      const hr = hr_allowance !== undefined ? parseFloat(hr_allowance) || 0 : parseFloat(user.hr_allowance) || 0;
+      const other = other_allowances !== undefined ? parseFloat(other_allowances) || 0 : parseFloat(user.other_allowances) || 0;
+      
+      updateData.basic_salary = basic;
+      updateData.hr_allowance = hr;
+      updateData.other_allowances = other;
+      updateData.total_salary = (total_salary !== undefined && total_salary !== null && total_salary !== '')
+        ? parseFloat(total_salary)
+        : (basic + hr + other);
     }
 
     await user.update(updateData);
@@ -85,12 +208,18 @@ exports.updateUser = async (req, res) => {
       attributes: { exclude: ['password_hash'] },
       include: [
         { model: Role, attributes: ['name', 'permissions', 'type'] },
-        { model: Customer, as: 'LinkedCustomers', attributes: ['id', 'name'] }
+        { model: Customer, as: 'LinkedCustomers', attributes: ['id', 'name'] },
+        {
+          model: StaffDocument,
+          as: 'StaffDocuments',
+          include: [{ model: DocumentType, as: 'DocumentType', attributes: ['id', 'name', 'category'] }]
+        }
       ]
     });
 
     res.json({ success: true, data: populated });
   } catch (err) {
+    console.error('[User Controller] updateUser error:', err);
     res.status(500).json({ success: false, message: 'Error updating user.' });
   }
 };
@@ -115,6 +244,135 @@ exports.deleteUser = async (req, res) => {
     await user.destroy();
     res.json({ success: true, message: 'User deleted successfully.' });
   } catch (err) {
+    console.error('[User Controller] deleteUser error:', err);
     res.status(500).json({ success: false, message: 'Error deleting user.' });
+  }
+};
+
+exports.uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded.' });
+    }
+
+    const user = await User.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    await user.update({ avatar: avatarUrl });
+
+    res.json({ 
+      success: true, 
+      message: 'Avatar uploaded successfully.',
+      avatar: avatarUrl
+    });
+  } catch (err) {
+    console.error('[User Controller] Avatar Upload Error:', err);
+    res.status(500).json({ success: false, message: 'Avatar upload failed.' });
+  }
+};
+
+// ─── Staff Document Management ──────────────────────────────────────────────
+exports.addStaffDocument = async (req, res) => {
+  try {
+    const user = await User.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const { document_type_id, title, doc_number, issue_date, expiry_date, notes } = req.body;
+    if (!expiry_date) {
+      return res.status(400).json({ success: false, message: 'Expiry date is required.' });
+    }
+
+    const filePath = req.file ? `/uploads/documents/${req.file.filename}` : null;
+
+    const doc = await StaffDocument.create({
+      user_id: user.id,
+      document_type_id: document_type_id ? parseInt(document_type_id) : null,
+      title: title || null,
+      doc_number: doc_number || null,
+      issue_date: issue_date || null,
+      expiry_date,
+      file_path: filePath,
+      notes: notes || null,
+      tenant_id: req.user.tenant_id
+    });
+
+    const populated = await StaffDocument.findByPk(doc.id, {
+      include: [{ model: DocumentType, as: 'DocumentType', attributes: ['id', 'name', 'category'] }]
+    });
+
+    res.status(201).json({ success: true, message: 'Document added successfully.', data: populated });
+  } catch (err) {
+    console.error('[User Controller] addStaffDocument error:', err);
+    res.status(500).json({ success: false, message: 'Failed to add staff document.' });
+  }
+};
+
+exports.updateStaffDocument = async (req, res) => {
+  try {
+    const doc = await StaffDocument.findOne({
+      where: { id: req.params.docId, user_id: req.params.id, tenant_id: req.user.tenant_id }
+    });
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Staff document not found.' });
+    }
+
+    const { document_type_id, title, doc_number, issue_date, expiry_date, notes } = req.body;
+    const updateData = {};
+    if (document_type_id !== undefined) updateData.document_type_id = document_type_id ? parseInt(document_type_id) : null;
+    if (title !== undefined) updateData.title = title;
+    if (doc_number !== undefined) updateData.doc_number = doc_number;
+    if (issue_date !== undefined) updateData.issue_date = issue_date || null;
+    if (expiry_date) updateData.expiry_date = expiry_date;
+    if (notes !== undefined) updateData.notes = notes;
+
+    if (req.file) {
+      if (doc.file_path) {
+        const oldPath = path.join('.', doc.file_path);
+        if (fs.existsSync(oldPath)) {
+          try { fs.unlinkSync(oldPath); } catch (e) {}
+        }
+      }
+      updateData.file_path = `/uploads/documents/${req.file.filename}`;
+    }
+
+    await doc.update(updateData);
+
+    const populated = await StaffDocument.findByPk(doc.id, {
+      include: [{ model: DocumentType, as: 'DocumentType', attributes: ['id', 'name', 'category'] }]
+    });
+
+    res.json({ success: true, message: 'Document updated successfully.', data: populated });
+  } catch (err) {
+    console.error('[User Controller] updateStaffDocument error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update staff document.' });
+  }
+};
+
+exports.deleteStaffDocument = async (req, res) => {
+  try {
+    const doc = await StaffDocument.findOne({
+      where: { id: req.params.docId, user_id: req.params.id, tenant_id: req.user.tenant_id }
+    });
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Staff document not found.' });
+    }
+
+    if (doc.file_path) {
+      const filePath = path.join('.', doc.file_path);
+      if (fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (e) {}
+      }
+    }
+
+    await doc.destroy();
+    res.json({ success: true, message: 'Document deleted successfully.' });
+  } catch (err) {
+    console.error('[User Controller] deleteStaffDocument error:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete staff document.' });
   }
 };

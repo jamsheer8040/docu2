@@ -295,6 +295,19 @@ async function run() {
   }
 
   // ══════════════════════════════════════════
+  //  16. SUPPLIERS & AP
+  // ══════════════════════════════════════════
+  console.log(bold('\n── Suppliers & AP ──'));
+  try {
+    const r = await apiCall('GET', '/suppliers', token);
+    assert('Suppliers list loads', r.ok && r.data.success, `status=${r.status}`);
+    const suppliers = r.data.data || [];
+    assert('All suppliers belong to tenant', suppliers.every(s => s.tenant_id === tenantId));
+  } catch (e) {
+    assert('Suppliers list loads', false, e.message);
+  }
+
+  // ══════════════════════════════════════════
   //  CROSS-TENANT ISOLATION TEST
   // ══════════════════════════════════════════
   if (tenants.length >= 2) {
@@ -333,6 +346,16 @@ async function run() {
       
       assert('Tenant 1 and Tenant 2 have no invoice overlap', iOverlap.length === 0,
         iOverlap.length > 0 ? `${iOverlap.length} shared IDs` : '');
+
+      // Supplier isolation
+      const sup1 = await apiCall('GET', '/suppliers', token);
+      const sup2 = await apiCall('GET', '/suppliers', token2);
+      const supIds1 = (sup1.data.data || []).map(s => s.id);
+      const supIds2 = (sup2.data.data || []).map(s => s.id);
+      const supOverlap = supIds1.filter(id => supIds2.includes(id));
+      
+      assert('Tenant 1 and Tenant 2 have no supplier overlap', supOverlap.length === 0,
+        supOverlap.length > 0 ? `${supOverlap.length} shared IDs` : '');
     } else {
       skip('Cross-tenant isolation', `No user found for tenant ${tenant2Id}`);
     }

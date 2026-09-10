@@ -2,11 +2,17 @@
   <v-container class="pa-6" style="max-width: 1400px">
     <v-row class="mb-4 align-center">
       <v-col cols="12">
-        <h1 class="text-h4 font-weight-bold color-primary">
-          <v-icon icon="mdi-cog-outline" class="mr-2" color="primary"></v-icon>
-          System Settings
-        </h1>
-        <p class="text-subtitle-1 text-grey-darken-1">Manage users, roles, layouts, and global configurations</p>
+        <div class="d-flex align-center">
+          <v-avatar size="56" class="rounded-xl mr-4 glass-icon-primary glass-avatar-container">
+            <v-icon icon="mdi-cog-outline" color="white" size="32"></v-icon>
+          </v-avatar>
+          <div>
+            <h1 class="text-h4 font-weight-bold color-primary mb-1">
+              System Settings
+            </h1>
+            <p class="text-subtitle-1 text-grey-darken-1 mb-0">Manage users, roles, layouts, and global configurations</p>
+          </div>
+        </div>
       </v-col>
     </v-row>
 
@@ -177,6 +183,28 @@
               </v-toolbar>
             </template>
 
+            <template v-slot:item.avatar="{ item }">
+              <v-avatar size="40" color="primary-light" class="cursor-pointer" @click="$router.push(`/staff/${item.id}`)">
+                <v-img v-if="item.avatar" :src="$api.defaults.baseURL.replace('/api/v1', '') + item.avatar" cover></v-img>
+                <span v-else class="text-primary font-weight-bold">{{ item.name.charAt(0).toUpperCase() }}</span>
+              </v-avatar>
+            </template>
+
+            <template v-slot:item.name="{ item }">
+              <div class="d-flex flex-column py-1">
+                <span
+                  class="font-weight-bold text-primary cursor-pointer hover-underline d-inline-flex align-center"
+                  @click="$router.push(`/staff/${item.id}`)"
+                >
+                  {{ item.name }}
+                  <v-icon icon="mdi-open-in-new" size="13" class="ml-1 opacity-60"></v-icon>
+                </span>
+                <span v-if="item.designation" class="text-caption text-grey">
+                  {{ item.designation }}
+                </span>
+              </div>
+            </template>
+
             <template v-slot:item.Role="{ item }">
               <v-chip size="small" variant="tonal" color="primary" class="font-weight-bold">
                 {{ item.Role?.name || 'No Role' }}
@@ -197,8 +225,9 @@
              </template>
 
             <template v-slot:item.actions="{ item }">
-              <v-btn v-if="auth.can('settings', 'write')" icon="mdi-pencil" variant="text" size="small" color="primary" @click="openUserForm(item)"></v-btn>
-              <v-btn v-if="auth.can('settings', 'delete') && item.Role?.name !== 'Admin'" icon="mdi-delete" variant="text" size="small" color="error" @click="confirmDeleteUser(item)"></v-btn>
+              <v-btn icon="mdi-card-account-details-outline" variant="text" size="small" color="info" :to="`/staff/${item.id}`" title="View Detailed Profile"></v-btn>
+              <v-btn v-if="auth.can('settings', 'write')" icon="mdi-pencil" variant="text" size="small" color="primary" @click="openUserForm(item)" title="Edit User"></v-btn>
+              <v-btn v-if="auth.can('settings', 'delete') && item.Role?.name !== 'Admin'" icon="mdi-delete" variant="text" size="small" color="error" @click="confirmDeleteUser(item)" title="Delete User"></v-btn>
             </template>
           </v-data-table>
         </v-card>
@@ -220,8 +249,8 @@
                       class="ma-2 border"
                     >
                       <template v-slot:prepend>
-                        <v-avatar color="primary-light" size="40">
-                          <v-icon icon="mdi-shield-check" color="primary"></v-icon>
+                        <v-avatar size="40" class="glass-icon-indigo glass-avatar-container">
+                          <v-icon icon="mdi-shield-check" color="white"></v-icon>
                         </v-avatar>
                       </template>
                       <v-list-item-title class="font-weight-bold">{{ role.name }}</v-list-item-title>
@@ -342,8 +371,8 @@
             <v-col cols="12" md="8">
                <v-card class="soft-card pa-6">
                   <div class="d-flex align-center mb-6">
-                     <v-avatar color="primary" variant="tonal" size="48" class="mr-4">
-                        <v-icon icon="mdi-tune"></v-icon>
+                     <v-avatar size="48" class="mr-4 rounded-lg glass-icon-blue glass-avatar-container">
+                        <v-icon icon="mdi-tune" color="white"></v-icon>
                      </v-avatar>
                      <div>
                         <div class="text-h6 font-weight-bold">Global Configuration</div>
@@ -424,33 +453,33 @@
                      
                      <v-divider class="my-6"></v-divider>
 
-                     <div class="d-flex align-center mb-6">
-                        <v-avatar color="primary" variant="tonal" size="48" class="mr-4">
-                           <v-icon icon="mdi-wallet-outline"></v-icon>
-                        </v-avatar>
-                        <div>
-                           <div class="text-h6 font-weight-bold">Wallet Management</div>
-                           <div class="text-caption text-grey">Configure when service costs are deducted from wallets</div>
-                        </div>
-                     </div>
-                     <v-row>
-                        <v-col cols="12" md="6">
-                           <v-select
-                             v-model="configs.wallet_deduction_point"
-                             :items="[
-                               { title: 'Deduct on Invoice Creation (Default)', value: 'invoice_creation' },
-                               { title: 'Deduct on Service Completion', value: 'service_completion' }
-                             ]"
-                             item-title="title"
-                             item-value="value"
-                             label="Cost Deduction Point"
-                             variant="outlined"
-                             class="soft-input"
-                             hint="When should we ask for a wallet to deduct service costs?"
-                             persistent-hint
-                           ></v-select>
-                        </v-col>
-                     </v-row>
+                      <div class="d-flex align-center mb-6">
+                         <v-avatar size="48" class="mr-4 rounded-lg glass-icon-success glass-avatar-container">
+                            <v-icon icon="mdi-cash-clock" color="white"></v-icon>
+                         </v-avatar>
+                         <div>
+                            <div class="text-h6 font-weight-bold">Cost Deduction Policy</div>
+                            <div class="text-caption text-grey">Configure when service costs and fees are deducted (from wallets or suppliers)</div>
+                         </div>
+                      </div>
+                      <v-row>
+                         <v-col cols="12" md="6">
+                            <v-select
+                              v-model="configs.wallet_deduction_point"
+                              :items="[
+                                { title: 'Deduct on Invoice Creation (Default)', value: 'invoice_creation' },
+                                { title: 'Deduct on Service Completion', value: 'service_completion' }
+                              ]"
+                              item-title="title"
+                              item-value="value"
+                              label="Cost Deduction Point"
+                              variant="outlined"
+                              class="soft-input"
+                              hint="Choose whether costs are deducted upon service completion or invoice creation"
+                              persistent-hint
+                            ></v-select>
+                         </v-col>
+                      </v-row>
                      
                      <v-divider class="my-6"></v-divider>
                      
@@ -485,8 +514,8 @@
             <v-col cols="12" md="8">
                <v-card class="soft-card pa-6">
                   <div class="d-flex align-center mb-6">
-                     <v-avatar color="primary" variant="tonal" size="48" class="mr-4">
-                        <v-icon icon="mdi-card-account-details-star-outline"></v-icon>
+                     <v-avatar size="48" class="mr-4 rounded-lg glass-icon-purple glass-avatar-container">
+                        <v-icon icon="mdi-card-account-details-star-outline" color="white"></v-icon>
                      </v-avatar>
                      <div>
                         <div class="text-h6 font-weight-bold">Subscription Information</div>
@@ -618,12 +647,20 @@
     </v-window>
 
     <!-- Dialog User -->
-    <v-dialog v-model="userDialog" max-width="500">
+    <v-dialog v-model="userDialog" max-width="650">
        <v-card v-if="userDialog" class="soft-card pa-4">
           <v-card-title class="text-h5 font-weight-bold">
              {{ edittingUser ? 'Edit System User' : 'Register New User' }}
           </v-card-title>
           <v-card-text class="mt-4">
+            <div class="d-flex justify-center mb-6">
+              <v-avatar size="100" color="grey-lighten-3" class="cursor-pointer" @click="triggerAvatarUpload" style="border: 2px dashed #ccc;">
+                <v-img v-if="avatarPreview" :src="avatarPreview" cover></v-img>
+                <v-icon v-else size="40" color="grey">mdi-camera-plus</v-icon>
+              </v-avatar>
+              <input type="file" ref="avatarInput" accept="image/*" class="d-none" @change="handleAvatarSelect" />
+            </div>
+
             <v-form ref="userForm" v-model="formValid">
               <v-text-field v-model="currentUser.name" label="Full Name" variant="outlined" rounded="lg" :rules="[v => !!v || 'Name is required']" class="mb-4"></v-text-field>
               <v-text-field v-model="currentUser.email" label="Email ID" variant="outlined" rounded="lg" :rules="[v => !!v || 'Email is required']" class="mb-4"></v-text-field>
@@ -638,12 +675,17 @@
                 :persistent-hint="edittingUser"
                 class="mb-4"
               ></v-text-field>
+              <v-radio-group v-model="currentUser.user_type" inline class="mb-2" hide-details>
+                <v-radio label="Internal Staff" value="Internal"></v-radio>
+                <v-radio label="Customer User" value="Customer"></v-radio>
+              </v-radio-group>
+
               <v-select
                 v-model="currentUser.role_id"
-                :items="roles"
+                :items="filteredRoles"
                 item-title="name"
                 item-value="id"
-                label="Assign Role"
+                :label="currentUser.user_type === 'Customer' ? 'Assign Customer Role' : 'Assign Internal Role'"
                 variant="outlined"
                 rounded="lg"
                 :rules="[v => !!v || 'Role assignment is required']"
@@ -668,6 +710,70 @@
                  :rules="[v => (v && v.length > 0) || 'At least one Linked Customer is required for Customer Portal user']"
                  class="mb-4"
                ></v-autocomplete>
+
+              <template v-if="currentUser.user_type === 'Internal'">
+                <v-row dense class="mb-2">
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="currentUser.phone"
+                      label="UAE Contact Number"
+                      placeholder="+971 50 123 4567"
+                      variant="outlined"
+                      rounded="lg"
+                      prepend-inner-icon="mdi-phone"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="currentUser.designation"
+                      label="Designation / Role Title"
+                      placeholder="e.g. Senior Typist, PRO"
+                      variant="outlined"
+                      rounded="lg"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                      v-model.number="currentUser.basic_salary"
+                      label="Basic Salary (AED)"
+                      type="number"
+                      variant="outlined"
+                      rounded="lg"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                      v-model.number="currentUser.hr_allowance"
+                      label="Housing/HR (AED)"
+                      type="number"
+                      variant="outlined"
+                      rounded="lg"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                      v-model.number="currentUser.other_allowances"
+                      label="Other Allow. (AED)"
+                      type="number"
+                      variant="outlined"
+                      rounded="lg"
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+                <div v-if="edittingUser && currentUser.id" class="mb-3">
+                  <v-btn
+                    variant="tonal"
+                    color="primary"
+                    block
+                    rounded="lg"
+                    prepend-icon="mdi-card-account-details"
+                    :to="`/staff/${currentUser.id}`"
+                  >
+                    Open Full Staff Profile & Documents
+                  </v-btn>
+                </div>
+              </template>
+
               <v-switch v-model="currentUser.is_active" label="Account Active Status" color="success" inset></v-switch>
             </v-form>
           </v-card-text>
@@ -855,8 +961,57 @@ const currentUser = ref({
   email: '',
   password: '',
   role_id: null,
+  user_type: 'Internal',
   is_active: true
 });
+
+const avatarInput = ref(null);
+const avatarPreview = ref(null);
+const avatarBlob = ref(null);
+
+const triggerAvatarUpload = () => {
+  avatarInput.value?.click();
+};
+
+const handleAvatarSelect = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      // Compress and crop using canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const size = 250; // Target square size
+
+      canvas.width = size;
+      canvas.height = size;
+
+      // Calculate crop to center the image
+      const scale = Math.max(size / img.width, size / img.height);
+      const sw = size / scale;
+      const sh = size / scale;
+      const sx = (img.width - sw) / 2;
+      const sy = (img.height - sh) / 2;
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, size, size);
+      
+      // Draw square centered crop
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
+
+      // Convert to blob
+      canvas.toBlob((blob) => {
+        avatarBlob.value = blob;
+        avatarPreview.value = URL.createObjectURL(blob);
+      }, 'image/jpeg', 0.85); // 85% quality JPEG
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
 
 const newRoleName = ref('');
 const newRoleType = ref('Internal');
@@ -958,6 +1113,7 @@ const snackbarText = ref('');
 const snackbarColor = ref('success');
 
 const userHeaders = [
+  { title: 'Avatar', key: 'avatar', sortable: false },
   { title: 'Full Name', key: 'name', sortable: true },
   { title: 'Email Address', key: 'email', sortable: true },
   { title: 'Assigned Role', key: 'Role', sortable: true },
@@ -984,9 +1140,22 @@ const systemModules = [
 const customers = ref([]);
 
 const isSelectedRoleCustomerPortal = computed(() => {
-  if (!currentUser.value.role_id) return false;
-  const role = roles.value.find(r => r.id === currentUser.value.role_id);
-  return role?.type === 'CustomerPortal';
+  return currentUser.value.user_type === 'Customer';
+});
+
+const filteredRoles = computed(() => {
+  const targetType = currentUser.value.user_type === 'Customer' ? 'CustomerPortal' : 'Internal';
+  return roles.value.filter(r => r.type === targetType);
+});
+
+// Watch user_type to reset role_id when switching
+watch(() => currentUser.value.user_type, (newType, oldType) => {
+  if (newType !== oldType && userDialog.value) {
+    currentUser.value.role_id = null;
+    if (newType === 'Internal') {
+      currentUser.value.customer_ids = [];
+    }
+  }
 });
 
 const fetchCustomersForDropdown = async () => {
@@ -1065,29 +1234,83 @@ const initSettings = async () => {
 
 const openUserForm = (user = null) => {
     edittingUser.value = !!user;
+    avatarPreview.value = null;
+    avatarBlob.value = null;
+    
     if (user) {
+        const isCustomer = user.Role?.type === 'CustomerPortal';
         currentUser.value = { 
             ...user, 
             password: '', 
-            customer_ids: user.LinkedCustomers ? user.LinkedCustomers.map(c => c.id) : [] 
+            user_type: isCustomer ? 'Customer' : 'Internal',
+            customer_ids: user.LinkedCustomers ? user.LinkedCustomers.map(c => c.id) : [],
+            phone: user.phone || '',
+            address: user.address || '',
+            home_country_address: user.home_country_address || '',
+            home_country_contact: user.home_country_contact || '',
+            home_country_alternate_contact: user.home_country_alternate_contact || '',
+            designation: user.designation || '',
+            joining_date: user.joining_date || '',
+            basic_salary: parseFloat(user.basic_salary) || 0,
+            hr_allowance: parseFloat(user.hr_allowance) || 0,
+            other_allowances: parseFloat(user.other_allowances) || 0,
+            total_salary: parseFloat(user.total_salary) || 0
         };
+        if (user.avatar) {
+            avatarPreview.value = $api.defaults.baseURL.replace('/api/v1', '') + user.avatar;
+        }
     } else {
-        currentUser.value = { name: '', email: '', password: '', role_id: roles.value[0]?.id, customer_ids: [], is_active: true };
+        const defaultInternalRole = roles.value.find(r => r.type === 'Internal');
+        currentUser.value = { 
+            name: '', 
+            email: '', 
+            password: '', 
+            user_type: 'Internal',
+            role_id: defaultInternalRole?.id || null, 
+            customer_ids: [], 
+            is_active: true,
+            phone: '',
+            address: '',
+            home_country_address: '',
+            home_country_contact: '',
+            home_country_alternate_contact: '',
+            designation: '',
+            joining_date: '',
+            basic_salary: 0,
+            hr_allowance: 0,
+            other_allowances: 0,
+            total_salary: 0
+        };
     }
     userDialog.value = true;
 };
 
 const saveUser = async () => {
-    if (!formValid.value) return;
+    const { valid } = await userForm.value.validate();
+    if (!valid) return;
+
     savingUser.value = true;
     try {
+        let userId = currentUser.value.id;
+
         if (edittingUser.value) {
-            await $api.put(`/users/${currentUser.value.id}`, currentUser.value);
+            await $api.put(`/users/${userId}`, currentUser.value);
             showNotify('User account updated.', 'success');
         } else {
-            await $api.post('/users', currentUser.value);
+            const res = await $api.post('/users', currentUser.value);
+            userId = res.data.data.id;
             showNotify('New user registered successfully.', 'success');
         }
+
+        // Upload avatar if changed
+        if (avatarBlob.value && userId) {
+            const formData = new FormData();
+            formData.append('avatar', avatarBlob.value, 'avatar.jpg');
+            await $api.post(`/users/${userId}/avatar`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        }
+
         userDialog.value = false;
         initSettings();
     } catch (err) {
@@ -1463,5 +1686,32 @@ onMounted(async () => {
 
 .primary-light {
     background: rgba(var(--v-theme-primary), 0.1);
+}
+
+/* Glassmorphism Icon Styles */
+.glass-avatar-container {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.glass-icon-primary {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%) !important;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3) !important;
+}
+.glass-icon-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+}
+.glass-icon-indigo {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%) !important;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3) !important;
+}
+.glass-icon-purple {
+  background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%) !important;
+  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3) !important;
+}
+.glass-icon-blue {
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%) !important;
+  box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3) !important;
 }
 </style>

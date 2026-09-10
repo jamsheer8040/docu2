@@ -166,32 +166,26 @@
             ></v-text-field>
           </v-col>
           <v-col cols="12" md="4" class="d-flex justify-md-end">
-            <v-btn-toggle
-              v-model="viewMode"
-              mandatory
-              variant="text"
-              class="d-flex border rounded-lg bg-white"
-              style="gap: 4px;"
-            >
+            <div class="bg-white border rounded-pill d-flex align-center pa-1 elevation-1" style="height: 48px;">
               <v-btn
-                value="kanban"
+                :class="['text-none font-weight-bold px-6 rounded-pill', viewMode === 'kanban' ? 'active-toggle' : 'text-grey-darken-3']"
                 :variant="viewMode === 'kanban' ? 'flat' : 'text'"
-                color="primary"
-                class="px-4 font-weight-bold"
-                prepend-icon="mdi-view-column"
+                @click="viewMode = 'kanban'"
+                height="40"
               >
+                <v-icon start size="20">mdi-view-column</v-icon>
                 Kanban
               </v-btn>
               <v-btn
-                value="calendar"
+                :class="['text-none font-weight-bold px-6 rounded-pill ml-1', viewMode === 'calendar' ? 'active-toggle' : 'text-grey-darken-3']"
                 :variant="viewMode === 'calendar' ? 'flat' : 'text'"
-                color="primary"
-                class="px-4 font-weight-bold"
-                prepend-icon="mdi-calendar-month"
+                @click="viewMode = 'calendar'"
+                height="40"
               >
+                <v-icon start size="20">mdi-calendar-month</v-icon>
                 Calendar
               </v-btn>
-            </v-btn-toggle>
+            </div>
           </v-col>
         </v-row>
 
@@ -1124,6 +1118,16 @@ watch(urgencyFilter, () => {
 .alert-card {
   border: 1px solid transparent;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.document-calendar :deep(.fc-event:hover) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.active-toggle {
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%) !important;
+  color: white !important;
+  box-shadow: 0 4px 15px -3px rgba(99, 102, 241, 0.4) !important;
 }
 .alert-card:hover {
   transform: translateY(-2px);

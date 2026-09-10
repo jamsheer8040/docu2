@@ -6,10 +6,26 @@
         <p class="text-subtitle-1 text-secondary font-weight-medium">Track and convert potential customers</p>
       </div>
       <div class="d-flex gap-4">
-        <v-btn-toggle v-model="viewMode" mandatory rounded="xl" density="comfortable" color="primary">
-          <v-btn value="list" prepend-icon="mdi-format-list-bulleted">List</v-btn>
-          <v-btn value="kanban" prepend-icon="mdi-view-column">Kanban</v-btn>
-        </v-btn-toggle>
+        <div class="bg-white border rounded-pill d-flex align-center pa-1 elevation-1 mr-4" style="height: 48px;">
+          <v-btn
+            :class="['text-none font-weight-bold px-6 rounded-pill', viewMode === 'list' ? 'active-toggle' : 'text-grey-darken-3']"
+            :variant="viewMode === 'list' ? 'flat' : 'text'"
+            @click="viewMode = 'list'"
+            height="40"
+          >
+            <v-icon start size="20">mdi-format-list-bulleted</v-icon>
+            List
+          </v-btn>
+          <v-btn
+            :class="['text-none font-weight-bold px-6 rounded-pill ml-1', viewMode === 'kanban' ? 'active-toggle' : 'text-grey-darken-3']"
+            :variant="viewMode === 'kanban' ? 'flat' : 'text'"
+            @click="viewMode = 'kanban'"
+            height="40"
+          >
+            <v-icon start size="20">mdi-view-column</v-icon>
+            Kanban
+          </v-btn>
+        </div>
         <v-btn
           class="btn-standard"
           size="large"
@@ -524,6 +540,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.active-toggle {
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%) !important;
+  color: white !important;
+  box-shadow: 0 4px 15px -3px rgba(99, 102, 241, 0.4) !important;
+}
+
 .text-gradient {
   background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, #90caf9 100%);
   -webkit-background-clip: text;

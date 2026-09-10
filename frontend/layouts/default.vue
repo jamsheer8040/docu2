@@ -56,6 +56,14 @@
             class="mb-2"
           ></v-list-item>
           <v-list-item
+            v-if="authStore.can('suppliers')"
+            prepend-icon="mdi-truck-delivery-outline"
+            title="Suppliers"
+            to="/suppliers"
+            color="primary"
+            class="mb-2"
+          ></v-list-item>
+          <v-list-item
             v-if="authStore.can('documents')"
             prepend-icon="mdi-file-document-outline"
             title="Documents"
@@ -117,6 +125,15 @@
             prepend-icon="mdi-chart-line"
             title="Reports & Analytics"
             to="/reports"
+            color="primary"
+            class="mb-2"
+          ></v-list-item>
+
+          <v-list-item
+            v-if="authStore.isAdmin || authStore.can('tools')"
+            prepend-icon="mdi-toolbox-outline"
+            title="Tools"
+            to="/tools"
             color="primary"
             class="mb-2"
           ></v-list-item>
@@ -280,7 +297,7 @@
           variant="flat"
           class="rounded-0 text-center font-weight-bold"
         >
-          Trial Period Expired. Please contact support or select a subscription package to continue.
+          Trial Period Expired (Read-Only Mode). Please contact support or select a subscription package to continue.
         </v-alert>
 
         <v-alert
@@ -289,7 +306,7 @@
           variant="flat"
           class="rounded-0 text-center font-weight-bold"
         >
-          Your subscription has expired. Please renew your plan.
+          Your subscription has expired (Read-Only Mode). Please renew your plan to restore full access.
         </v-alert>
         
         <v-alert

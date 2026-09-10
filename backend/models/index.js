@@ -23,10 +23,17 @@ const Lead = require(path.join(__dirname, 'Lead.js'));
 const LeadStatusHistory = require(path.join(__dirname, 'LeadStatusHistory.js'));
 console.log('  Loaded: Customer, Lead, LeadStatusHistory');
 
-// 3. Document & DocumentType
+// 2.5 Supplier & Purchases
+const Supplier = require(path.join(__dirname, 'Supplier.js'));
+const SupplierPurchase = require(path.join(__dirname, 'SupplierPurchase.js'));
+const SupplierPayment = require(path.join(__dirname, 'SupplierPayment.js'));
+console.log('  Loaded: Supplier, SupplierPurchase, SupplierPayment');
+
+// 3. Document & DocumentType & StaffDocument
 const Document = require(path.join(__dirname, 'Document.js'));
 const DocumentType = require(path.join(__dirname, 'DocumentType.js'));
-console.log('  Loaded: Document, DocumentType');
+const StaffDocument = require(path.join(__dirname, 'StaffDocument.js'));
+console.log('  Loaded: Document, DocumentType, StaffDocument');
 
 // 3.5 Tax
 const Tax = require(path.join(__dirname, 'Tax.js'));
@@ -80,6 +87,10 @@ const EmailTemplate = require(path.join(__dirname, 'EmailTemplate.js'));
 const EmailLog = require(path.join(__dirname, 'EmailLog.js'));
 console.log('  Loaded: EmailTemplate, EmailLog');
 
+// 10. Tools
+const SavedCv = require(path.join(__dirname, 'SavedCv.js'));
+console.log('  Loaded: SavedCv');
+
 // 7. Management / Shareholder
 const Shareholder = require(path.join(__dirname, 'Shareholder.js'));
 const OwnershipChange = require(path.join(__dirname, 'OwnershipChange.js'));
@@ -124,6 +135,15 @@ Tenant.hasMany(Role, { foreignKey: 'tenant_id' });
 Customer.belongsTo(Tenant, { foreignKey: 'tenant_id' });
 Tenant.hasMany(Customer, { foreignKey: 'tenant_id' });
 
+Supplier.belongsTo(Tenant, { foreignKey: 'tenant_id' });
+Tenant.hasMany(Supplier, { foreignKey: 'tenant_id' });
+
+SupplierPurchase.belongsTo(Tenant, { foreignKey: 'tenant_id' });
+Tenant.hasMany(SupplierPurchase, { foreignKey: 'tenant_id' });
+
+SupplierPayment.belongsTo(Tenant, { foreignKey: 'tenant_id' });
+Tenant.hasMany(SupplierPayment, { foreignKey: 'tenant_id' });
+
 Lead.belongsTo(Tenant, { foreignKey: 'tenant_id' });
 Tenant.hasMany(Lead, { foreignKey: 'tenant_id' });
 
@@ -149,6 +169,15 @@ Tenant.hasMany(Document, { foreignKey: 'tenant_id' });
 
 DocumentType.belongsTo(Tenant, { foreignKey: 'tenant_id' });
 Tenant.hasMany(DocumentType, { foreignKey: 'tenant_id' });
+
+StaffDocument.belongsTo(Tenant, { foreignKey: 'tenant_id' });
+Tenant.hasMany(StaffDocument, { foreignKey: 'tenant_id' });
+
+StaffDocument.belongsTo(User, { foreignKey: 'user_id' });
+User.hasMany(StaffDocument, { foreignKey: 'user_id', as: 'StaffDocuments' });
+
+StaffDocument.belongsTo(DocumentType, { foreignKey: 'document_type_id', as: 'DocumentType' });
+DocumentType.hasMany(StaffDocument, { foreignKey: 'document_type_id' });
 
 Tax.belongsTo(Tenant, { foreignKey: 'tenant_id' });
 Tenant.hasMany(Tax, { foreignKey: 'tenant_id' });
@@ -229,6 +258,25 @@ Customer.hasMany(ServiceOrder, { foreignKey: 'customer_id' });
 ServiceOrder.belongsTo(ServiceType, { foreignKey: 'service_type_id' });
 ServiceType.hasMany(ServiceOrder, { foreignKey: 'service_type_id' });
 
+// Supplier Associations
+SupplierPurchase.belongsTo(Supplier, { foreignKey: 'supplier_id' });
+Supplier.hasMany(SupplierPurchase, { foreignKey: 'supplier_id' });
+
+SupplierPayment.belongsTo(Supplier, { foreignKey: 'supplier_id' });
+Supplier.hasMany(SupplierPayment, { foreignKey: 'supplier_id' });
+
+SupplierPayment.belongsTo(SupplierPurchase, { foreignKey: 'purchase_id' });
+SupplierPurchase.hasMany(SupplierPayment, { foreignKey: 'purchase_id' });
+
+SupplierPayment.belongsTo(WalletAccount, { foreignKey: 'wallet_id' });
+WalletAccount.hasMany(SupplierPayment, { foreignKey: 'wallet_id' });
+
+ServiceOrder.belongsTo(Supplier, { foreignKey: 'cost_supplier_id' });
+Supplier.hasMany(ServiceOrder, { foreignKey: 'cost_supplier_id' });
+
+InvoiceItem.belongsTo(Supplier, { foreignKey: 'cost_supplier_id' });
+Supplier.hasMany(InvoiceItem, { foreignKey: 'cost_supplier_id' });
+
 SalesOrder.belongsTo(Customer, { foreignKey: 'customer_id' });
 Customer.hasMany(SalesOrder, { foreignKey: 'customer_id' });
 
@@ -250,11 +298,14 @@ ServiceType.hasMany(ServiceTypePricing, { foreignKey: 'service_type_id' });
 Invoice.belongsTo(Customer, { foreignKey: 'customer_id' });
 Customer.hasMany(Invoice, { foreignKey: 'customer_id' });
 
-Invoice.belongsTo(ServiceOrder, { foreignKey: 'service_order_id', constraints: false });
-ServiceOrder.hasOne(Invoice, { foreignKey: 'service_order_id', constraints: false });
+Invoice.hasMany(ServiceOrder, { foreignKey: 'invoice_id' });
+ServiceOrder.belongsTo(Invoice, { foreignKey: 'invoice_id' });
 
 Invoice.hasMany(InvoiceItem, { foreignKey: 'invoice_id' });
 InvoiceItem.belongsTo(Invoice, { foreignKey: 'invoice_id' });
+
+InvoiceItem.belongsTo(ServiceOrder, { foreignKey: 'service_order_id' });
+ServiceOrder.hasMany(InvoiceItem, { foreignKey: 'service_order_id' });
 
 Expense.belongsTo(WalletAccount, { foreignKey: 'account_id' });
 WalletAccount.hasMany(Expense, { foreignKey: 'account_id' });
@@ -293,6 +344,14 @@ WalletAccount.hasMany(DividendPayment, { foreignKey: 'wallet_id' });
 // Email Associations
 EmailTemplate.belongsTo(Tenant, { foreignKey: 'tenant_id' });
 Tenant.hasMany(EmailTemplate, { foreignKey: 'tenant_id' });
+
+// EmailLog Associations
+EmailLog.belongsTo(Tenant, { foreignKey: 'tenant_id' });
+EmailLog.belongsTo(EmailTemplate, { foreignKey: 'template_id' });
+
+// SavedCv Associations
+SavedCv.belongsTo(Tenant, { foreignKey: 'tenant_id' });
+SavedCv.belongsTo(User, { foreignKey: 'user_id' });
 
 EmailLog.belongsTo(Tenant, { foreignKey: 'tenant_id' });
 Tenant.hasMany(EmailLog, { foreignKey: 'tenant_id' });
@@ -387,10 +446,14 @@ const db = {
   User,
   Role,
   Customer,
+  Supplier,
+  SupplierPurchase,
+  SupplierPayment,
   Lead,
   LeadStatusHistory,
   Document,
   DocumentType,
+  StaffDocument,
   Tax,
   WalletAccount,
   WalletTransaction,
@@ -414,7 +477,8 @@ const db = {
   VoucherDesign,
   VoucherDesignAuditLog,
   EmailTemplate,
-  EmailLog
+  EmailLog,
+  SavedCv
 };
 
 module.exports = db;

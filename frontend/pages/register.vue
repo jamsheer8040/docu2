@@ -55,10 +55,7 @@
 
             <template v-slot:item.2>
               <v-card title="Choose Your Plan" variant="flat" class="bg-transparent mt-4 text-center">
-                <v-btn-toggle v-model="state.billingCycle" color="primary" class="mb-6 rounded-xl" mandatory>
-                  <v-btn value="monthly" class="px-6 font-weight-bold">Monthly Billing</v-btn>
-                  <v-btn value="yearly" class="px-6 font-weight-bold">Yearly Billing (Save up to 20%)</v-btn>
-                </v-btn-toggle>
+                <div class="text-subtitle-1 mb-6 text-secondary">Prices shown are starting monthly rates. You will not be billed until your workspace is approved and activated.</div>
 
                 <v-row class="justify-center">
                   <v-col
@@ -77,8 +74,8 @@
                     >
                       <div class="text-h6 font-weight-black mb-1">{{ plan.name }}</div>
                       <div class="d-flex align-baseline justify-center my-3">
-                        <span class="text-h4 font-weight-black text-primary">AED {{ state.billingCycle === 'yearly' ? plan.price_yearly : plan.price_monthly }}</span>
-                        <span class="text-caption text-secondary ml-1">/{{ state.billingCycle === 'yearly' ? 'yr' : 'mo' }}</span>
+                        <span class="text-h4 font-weight-black text-primary">AED {{ plan.price_monthly }}</span>
+                        <span class="text-caption text-secondary ml-1">/mo</span>
                       </div>
                       
                       <v-divider class="my-3 opacity-10"></v-divider>

@@ -11,6 +11,14 @@ const InvoiceItem = sequelize.define('InvoiceItem', {
     type: DataTypes.BIGINT,
     allowNull: false
   },
+  service_order_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+    references: {
+      model: 'service_orders',
+      key: 'id'
+    }
+  },
   description: {
     type: DataTypes.STRING(255),
     allowNull: false
@@ -65,6 +73,18 @@ const InvoiceItem = sequelize.define('InvoiceItem', {
     allowNull: true,
     references: {
       model: 'wallet_accounts',
+      key: 'id'
+    }
+  },
+  cost_type: {
+    type: DataTypes.ENUM('Wallet', 'Supplier'),
+    allowNull: true
+  },
+  cost_supplier_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'suppliers',
       key: 'id'
     }
   },

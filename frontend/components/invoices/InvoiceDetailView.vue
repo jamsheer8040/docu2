@@ -66,11 +66,14 @@
         <!-- Branding -->
         <v-row class="mb-10 align-top">
           <v-col cols="6">
-            <div class="text-h4 font-weight-bold color-primary mb-2">DocClear</div>
+            <div v-if="configStore.appLogo" class="mb-2">
+              <v-img :src="configStore.appLogo" max-width="150" max-height="60" contain style="mix-blend-mode: multiply;"></v-img>
+            </div>
+            <div v-else class="text-h4 font-weight-bold color-primary mb-2">{{ configStore.appName }}</div>
             <div class="text-caption opacity-70">
-              Building A-1, Business Bay<br />
-              Dubai, UAE<br />
-              Phone: +971 4 000 0000
+              <span v-if="configStore.settings.company_address">{{ configStore.settings.company_address }}<br /></span>
+              <span v-else>Building A-1, Business Bay<br />Dubai, UAE<br /></span>
+              Phone: {{ configStore.settings.company_phone || '+971 4 000 0000' }}
             </div>
           </v-col>
           <v-col cols="6" class="text-right">
@@ -153,7 +156,7 @@
         <!-- Footer Notes -->
         <div class="mt-15 pt-10 border-t text-center">
           <p class="text-caption opacity-40 mb-2">Payment Terms: 15 Days from Invoice Date</p>
-          <p class="text-caption opacity-60">Thank you for Choosing DocClear Management System!</p>
+          <p class="text-caption opacity-60">Thank you for Choosing {{ configStore.appName }}!</p>
         </div>
       </v-card>
     </v-card-text>
@@ -180,6 +183,7 @@ import { useUIStore } from '~/stores/ui'
 const uiStore = useUIStore()
 import { computed, onMounted } from 'vue';
 import { useInvoiceStore } from '~/stores/invoices';
+import { useConfigStore } from '~/stores/config';
 import InvoiceStatusChip from '~/components/invoices/InvoiceStatusChip.vue';
 import { useWhatsApp } from '~/composables/useWhatsApp';
 
@@ -189,6 +193,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close']);
 const invoiceStore = useInvoiceStore();
+const configStore = useConfigStore();
 const { openWhatsApp } = useWhatsApp();
 
 const currentInvoice = computed(() => invoiceStore.currentInvoice);

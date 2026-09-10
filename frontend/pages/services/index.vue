@@ -41,10 +41,26 @@
     <!-- VIEW TOGGLE & FILTERS -->
     <v-card class="mb-6 border pa-2" border variant="flat">
       <div class="d-flex align-center flex-wrap gap-4 px-4">
-        <v-tabs v-model="viewMode" color="primary" density="compact" class="rounded-lg">
-          <v-tab value="kanban" prepend-icon="mdi-view-column-outline">Kanban Board</v-tab>
-          <v-tab value="list" prepend-icon="mdi-format-list-bulleted">List View</v-tab>
-        </v-tabs>
+        <div class="bg-white border rounded-pill d-flex align-center pa-1 elevation-1" style="height: 48px;">
+          <v-btn
+            :class="['text-none font-weight-bold px-6 rounded-pill', viewMode === 'kanban' ? 'active-toggle' : 'text-grey-darken-3']"
+            :variant="viewMode === 'kanban' ? 'flat' : 'text'"
+            @click="viewMode = 'kanban'"
+            height="40"
+          >
+            <v-icon start size="20">mdi-view-column-outline</v-icon>
+            Kanban Board
+          </v-btn>
+          <v-btn
+            :class="['text-none font-weight-bold px-6 rounded-pill ml-1', viewMode === 'list' ? 'active-toggle' : 'text-grey-darken-3']"
+            :variant="viewMode === 'list' ? 'flat' : 'text'"
+            @click="viewMode = 'list'"
+            height="40"
+          >
+            <v-icon start size="20">mdi-format-list-bulleted</v-icon>
+            List View
+          </v-btn>
+        </div>
         <v-spacer></v-spacer>
         <!-- Criticality Filter -->
         <v-select
@@ -112,15 +128,20 @@
               <v-slide-y-transition group>
                 <v-card v-for="order in groupedOrders.Pending" :key="order.id" class="mb-3 order-card" :class="'criticality-border-' + order.criticality" border>
                   <v-card-text class="pa-3">
-                    <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
-                      <div class="d-flex align-center gap-1">
-                        <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
-                        <v-icon
-                          :color="order.criticality === 'Critical' ? 'error' : (order.criticality === 'Moderate' ? 'orange' : 'success')"
-                          size="small"
-                          :title="'Priority: ' + order.criticality"
-                        >mdi-lightbulb-on</v-icon>
+                    <div class="d-flex justify-space-between align-start mb-2">
+                      <span class="text-caption font-weight-bold opacity-50 mt-1">#{{ String(order.id).padStart(5, '0') }}</span>
+                      <div class="d-flex flex-column align-end">
+                        <div class="d-flex align-center gap-1">
+                          <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
+                          <v-icon
+                            :color="order.criticality === 'Critical' ? 'error' : (order.criticality === 'Moderate' ? 'orange' : 'success')"
+                            size="small"
+                            :title="'Priority: ' + order.criticality"
+                          >mdi-lightbulb-on</v-icon>
+                        </div>
+                        <div v-if="order.is_cost_deducted && order.deducted_wallet_name" class="text-success font-weight-bold mt-1 d-flex align-center" style="font-size: 0.65rem !important;">
+                          <v-icon size="x-small" icon="mdi-check-all" class="mr-1"></v-icon>{{ order.deducted_wallet_name.substring(0, 4).toUpperCase() }}
+                        </div>
                       </div>
                     </div>
                     <div class="text-body-2 font-weight-bold mb-1">{{ order.Customer?.name }}</div>
@@ -184,15 +205,20 @@
               <v-slide-y-transition group>
                 <v-card v-for="order in groupedOrders['In Progress']" :key="order.id" class="mb-3 order-card" :class="'criticality-border-' + order.criticality" border>
                   <v-card-text class="pa-3">
-                    <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
-                      <div class="d-flex align-center gap-1">
-                        <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
-                        <v-icon
-                          :color="order.criticality === 'Critical' ? 'error' : (order.criticality === 'Moderate' ? 'orange' : 'success')"
-                          size="small"
-                          :title="'Priority: ' + order.criticality"
-                        >mdi-lightbulb-on</v-icon>
+                    <div class="d-flex justify-space-between align-start mb-2">
+                      <span class="text-caption font-weight-bold opacity-50 mt-1">#{{ String(order.id).padStart(5, '0') }}</span>
+                      <div class="d-flex flex-column align-end">
+                        <div class="d-flex align-center gap-1">
+                          <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
+                          <v-icon
+                            :color="order.criticality === 'Critical' ? 'error' : (order.criticality === 'Moderate' ? 'orange' : 'success')"
+                            size="small"
+                            :title="'Priority: ' + order.criticality"
+                          >mdi-lightbulb-on</v-icon>
+                        </div>
+                        <div v-if="order.is_cost_deducted && order.deducted_wallet_name" class="text-success font-weight-bold mt-1 d-flex align-center" style="font-size: 0.65rem !important;">
+                          <v-icon size="x-small" icon="mdi-check-all" class="mr-1"></v-icon>{{ order.deducted_wallet_name.substring(0, 4).toUpperCase() }}
+                        </div>
                       </div>
                     </div>
                     <div class="text-body-2 font-weight-bold mb-1">{{ order.Customer?.name }}</div>
@@ -259,9 +285,14 @@
               <v-slide-y-transition group>
                 <v-card v-for="order in groupedOrders.CompletedInvoicePending" :key="order.id" class="mb-3 order-card" border>
                   <v-card-text class="pa-3">
-                    <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
-                      <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
+                    <div class="d-flex justify-space-between align-start mb-2">
+                      <span class="text-caption font-weight-bold opacity-50 mt-1">#{{ String(order.id).padStart(5, '0') }}</span>
+                      <div class="d-flex flex-column align-end">
+                        <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
+                        <div v-if="order.is_cost_deducted && order.deducted_wallet_name" class="text-success font-weight-bold mt-1 d-flex align-center" style="font-size: 0.65rem !important;">
+                          <v-icon size="x-small" icon="mdi-check-all" class="mr-1"></v-icon>{{ order.deducted_wallet_name.substring(0, 4).toUpperCase() }}
+                        </div>
+                      </div>
                     </div>
                     <div class="text-body-2 font-weight-bold mb-1">{{ order.Customer?.name }}</div>
 
@@ -297,9 +328,7 @@
                         class="ml-1"
                       >Create Invoice</v-btn>
                     </div>
-                    <div class="d-flex justify-between align-center mt-2 pt-2 border-t">
-                      <v-btn v-if="auth.can('services', 'write')" variant="text" size="x-small" color="grey" prepend-icon="mdi-undo" @click.stop="revertOrder(order)">Revert</v-btn>
-                    </div>
+
                   </v-card-text>
                 </v-card>
               </v-slide-y-transition>
@@ -316,9 +345,14 @@
               <v-slide-y-transition group>
                 <v-card v-for="order in groupedOrders.CompletedInvoiceCreated" :key="order.id" class="mb-3 order-card opacity-80" border>
                   <v-card-text class="pa-3">
-                    <div class="d-flex justify-space-between align-center mb-2">
-                      <span class="text-caption font-weight-bold opacity-50">#{{ String(order.id).padStart(5, '0') }}</span>
-                      <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
+                    <div class="d-flex justify-space-between align-start mb-2">
+                      <span class="text-caption font-weight-bold opacity-50 mt-1">#{{ String(order.id).padStart(5, '0') }}</span>
+                      <div class="d-flex flex-column align-end">
+                        <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
+                        <div v-if="order.is_cost_deducted && order.deducted_wallet_name" class="text-success font-weight-bold mt-1 d-flex align-center" style="font-size: 0.65rem !important;">
+                          <v-icon size="x-small" icon="mdi-check-all" class="mr-1"></v-icon>{{ order.deducted_wallet_name.substring(0, 4).toUpperCase() }}
+                        </div>
+                      </div>
                     </div>
                     <div class="text-body-2 font-weight-bold mb-1 opacity-70">{{ order.Customer?.name }}</div>
 
@@ -347,8 +381,7 @@
                       class="font-weight-bold mb-2"
                     >Invoice Pending</v-chip>
 
-                    <div class="d-flex justify-space-between align-center mt-2 pt-2 border-t">
-                      <v-btn v-if="auth.can('services', 'write')" variant="text" size="x-small" color="grey" prepend-icon="mdi-undo" @click.stop="revertOrder(order)">Revert</v-btn>
+                    <div class="d-flex justify-end align-center mt-2 pt-2 border-t">
                       <v-btn color="primary" variant="text" size="x-small" append-icon="mdi-arrow-right" to="/invoices">Invoices</v-btn>
                     </div>
                   </v-card-text>
@@ -584,16 +617,23 @@
       @confirm="executeOrderCompletion"
     />
 
-    <!-- Completion Wallet Dialog -->
+    <!-- Completion Cost Management Dialog -->
     <v-dialog v-model="completionWalletDialog.show" max-width="500px" persistent>
       <v-card class="soft-card pa-4">
         <v-card-title class="text-h5 font-weight-bold d-flex align-center">
-          <v-icon icon="mdi-wallet-outline" color="primary" class="mr-2"></v-icon>
-          Select Wallet for Service Cost
+          <v-icon icon="mdi-cash-multiple" color="primary" class="mr-2"></v-icon>
+          Service Cost Deduction
         </v-card-title>
         <v-card-text class="mt-4">
-          <p class="mb-4 text-grey-darken-1">Please select the wallet to deduct the service cost from.</p>
+          <p class="mb-4 text-grey-darken-1">Please specify how the service cost should be handled.</p>
+          
+          <v-btn-toggle v-model="completionWalletDialog.costType" mandatory class="mb-4 d-flex rounded-lg" color="primary" variant="tonal" density="comfortable">
+            <v-btn value="Wallet" class="flex-grow-1 font-weight-bold text-none">Deduct from Wallet</v-btn>
+            <v-btn value="Supplier" class="flex-grow-1 font-weight-bold text-none">Bill to Supplier</v-btn>
+          </v-btn-toggle>
+
           <v-select
+            v-if="completionWalletDialog.costType === 'Wallet'"
             v-model="completionWalletDialog.selectedWallet"
             :items="walletStore.accounts"
             item-title="name"
@@ -603,11 +643,32 @@
             prepend-inner-icon="mdi-wallet"
             :rules="[v => !!v || 'Wallet selection is required']"
           ></v-select>
+
+          <v-select
+            v-if="completionWalletDialog.costType === 'Supplier'"
+            v-model="completionWalletDialog.selectedSupplier"
+            :items="suppliersList"
+            item-title="name"
+            item-value="id"
+            label="Supplier"
+            variant="outlined"
+            prepend-inner-icon="mdi-truck-outline"
+            :rules="[v => !!v || 'Supplier selection is required']"
+          ></v-select>
+
         </v-card-text>
         <v-card-actions class="pb-4">
           <v-spacer></v-spacer>
           <v-btn variant="text" rounded="lg" @click="completionWalletDialog.show = false">Cancel</v-btn>
-          <v-btn color="primary" variant="flat" rounded="lg" class="px-8" :loading="serviceStore.loading" @click="executeOrderCompletionWithWallet" :disabled="!completionWalletDialog.selectedWallet">
+          <v-btn 
+            color="primary" 
+            variant="flat" 
+            rounded="lg" 
+            class="px-8" 
+            :loading="serviceStore.loading" 
+            @click="executeOrderCompletionWithCost" 
+            :disabled="(completionWalletDialog.costType === 'Wallet' && !completionWalletDialog.selectedWallet) || (completionWalletDialog.costType === 'Supplier' && !completionWalletDialog.selectedSupplier)"
+          >
             Complete Service
           </v-btn>
         </v-card-actions>
@@ -660,7 +721,21 @@ const criticalityFilter = ref('All');
 
 const snackbar = reactive({ show: false, text: '', color: 'success' });
 const confirmDialog = reactive({ show: false, title: '', message: '', confirmText: 'Confirm' });
-const completionWalletDialog = reactive({ show: false, selectedWallet: null });
+const completionWalletDialog = reactive({ show: false, selectedWallet: null, costType: 'Wallet', selectedSupplier: null });
+
+const { $api } = useNuxtApp();
+const suppliersList = ref([]);
+
+const fetchSuppliers = async () => {
+  try {
+    const res = await $api.get('/suppliers', { params: { is_active: true } });
+    if (res.data?.success) {
+      suppliersList.value = res.data.data;
+    }
+  } catch (err) {
+    console.error('Failed to load suppliers for cost deduction:', err);
+  }
+};
 
 // ─── Status Options ────────────────────────────────────────────────────────────
 const statusOptions = [
@@ -746,7 +821,10 @@ const fetchData = async () => {
   }
 };
 
-onMounted(fetchData);
+onMounted(() => {
+  fetchData();
+  fetchSuppliers();
+});
 
 watch([sortBy, criticalityFilter], () => {
   fetchData();
@@ -785,7 +863,8 @@ const closeOrderForm = () => {
 
 const updateStatus = async (order, newStatus) => {
   if (newStatus === 'Completed') {
-    return confirmOrderCompletion(order);
+    confirmOrderCompletion(order);
+    return;
   }
   try {
     const res = await serviceStore.updateOrderStatus(order.id, newStatus);
@@ -812,6 +891,8 @@ const confirmOrderCompletion = (order) => {
   
   if (configStore.walletDeductionPoint === 'service_completion' && !order.is_cost_deducted) {
     completionWalletDialog.selectedWallet = null;
+    completionWalletDialog.selectedSupplier = null;
+    completionWalletDialog.costType = 'Wallet';
     completionWalletDialog.show = true;
     return;
   }
@@ -837,11 +918,26 @@ const executeOrderCompletion = async () => {
   }
 };
 
-const executeOrderCompletionWithWallet = async () => {
-  if (!completionWalletDialog.selectedWallet) return;
+const executeOrderCompletionWithCost = async () => {
+  if (completionWalletDialog.costType === 'Wallet' && !completionWalletDialog.selectedWallet) return;
+  if (completionWalletDialog.costType === 'Supplier' && !completionWalletDialog.selectedSupplier) return;
   if (!selectedOrderForCompletion.value) return;
+
   try {
-    const res = await serviceStore.updateOrderStatus(selectedOrderForCompletion.value.id, 'Completed', completionWalletDialog.selectedWallet);
+    // Determine payload based on costType
+    const payload = {
+      status: 'Completed',
+      cost_type: completionWalletDialog.costType
+    };
+    if (completionWalletDialog.costType === 'Wallet') {
+      payload.wallet_id = completionWalletDialog.selectedWallet;
+    } else {
+      payload.cost_supplier_id = completionWalletDialog.selectedSupplier;
+    }
+
+    const { $api } = useNuxtApp();
+    const response = await $api.put(`/services/orders/${selectedOrderForCompletion.value.id}/status`, payload);
+    
     completionWalletDialog.show = false;
     showSnackbar(res?.message || 'Service completed!', 'success');
     selectedOrderForCompletion.value = null;
@@ -922,6 +1018,13 @@ const showSnackbar = (text, color = 'success') => {
 </script>
 
 <style scoped>
+.active-toggle {
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%) !important;
+  color: white !important;
+  box-shadow: 0 4px 15px -3px rgba(99, 102, 241, 0.4) !important;
+}
+
+/* Kanban Styles */
 .kanban-container { min-height: 500px; }
 .kanban-row { scrollbar-width: thin; }
 .kanban-col { min-width: 280px; max-width: 320px; }

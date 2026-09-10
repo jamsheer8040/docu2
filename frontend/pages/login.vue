@@ -19,6 +19,7 @@
                 <v-icon size="24" color="white">mdi-shield-check-outline</v-icon>
              </div>
           </div>
+          <div class="text-h5 font-weight-black color-primary mb-6" v-if="!configStore.appLogo">{{ configStore.appName }}</div>
 
           <v-form @submit.prevent="handleLogin" class="text-left mt-2">
             

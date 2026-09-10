@@ -165,10 +165,33 @@ exports.getServiceOrders = async (req, res, next) => {
       offset: parseInt(offset),
       order
     });
+    // Fetch wallet names for deducted costs
+    const orderIds = rows.filter(r => r.is_cost_deducted).map(r => r.id);
+    let walletTxMap = {};
+    if (orderIds.length > 0) {
+      const { WalletTransaction, WalletAccount } = require('../models');
+      const wts = await WalletTransaction.findAll({
+        where: { reference_id: orderIds, reference_type: 'ServiceCost', tenant_id: req.user.tenant_id },
+        include: [{ model: WalletAccount, attributes: ['id', 'name'] }]
+      });
+      wts.forEach(wt => {
+        if (wt.WalletAccount) {
+          walletTxMap[wt.reference_id] = wt.WalletAccount.name;
+        }
+      });
+    }
+
+    const dataRows = rows.map(r => {
+      const row = r.toJSON();
+      if (row.is_cost_deducted && walletTxMap[row.id]) {
+        row.deducted_wallet_name = walletTxMap[row.id];
+      }
+      return row;
+    });
 
     res.json({ 
       success: true, 
-      data: rows,
+      data: dataRows,
       meta: {
         total: count,
         page: parseInt(page),
@@ -210,7 +233,7 @@ exports.createServiceOrder = async (req, res, next) => {
 exports.updateServiceOrderStatus = async (req, res, next) => {
   const transaction = await sequelize.transaction();
   try {
-    const { status, wallet_id } = req.body;
+    const { status, wallet_id, cost_type, cost_supplier_id } = req.body;
     const order = await ServiceOrder.findOne({
       where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
@@ -228,13 +251,16 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
     const oldStatus = order.status;
     const updates = { status };
 
-    // CANCEL VALIDATION: block if active invoice exists
+    // CANCEL VALIDATION: block if active invoice exists or service is completed
     if (status === 'Cancelled') {
-      const invoice = await Invoice.findOne({
-        where: { service_order_id: order.id, status: { [Op.ne]: 'Cancelled' }, tenant_id: req.user.tenant_id },
-        transaction
-      });
-      if (invoice) {
+      if (oldStatus === 'CompletedInvoicePending' || oldStatus === 'CompletedInvoiceCreated') {
+        await transaction.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Completed services cannot be cancelled.'
+        });
+      }
+      if (order.invoice_id) {
         await transaction.rollback();
         return res.status(400).json({
           success: false,
@@ -250,40 +276,67 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
 
     } else if (oldStatus === 'In Progress' && status === 'Completed') {
       // Complete Service — check invoice to determine which completed stage
-      const invoice = await Invoice.findOne({
-        where: { service_order_id: order.id, status: { [Op.ne]: 'Cancelled' }, tenant_id: req.user.tenant_id },
-        transaction
-      });
-      updates.status = invoice ? 'CompletedInvoiceCreated' : 'CompletedInvoicePending';
+      updates.status = order.invoice_id ? 'CompletedInvoiceCreated' : 'CompletedInvoicePending';
       updates.completed_at = new Date();
 
-      // Wallet deduction logic for Service Completion
-      if (wallet_id && !order.is_cost_deducted) {
+      // Wallet or Supplier deduction logic for Service Completion
+      if ((wallet_id || cost_supplier_id) && !order.is_cost_deducted) {
+        let totalCost = 0;
+        let serviceName = '';
         const salesOrderItem = await SalesOrderItem.findOne({
           where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
           transaction
         });
         if (salesOrderItem && parseFloat(salesOrderItem.cost) > 0) {
-          const totalCost = parseFloat(salesOrderItem.cost) * parseInt(salesOrderItem.quantity || 1);
-          const { WalletTransaction, WalletAccount } = require('../models');
-          await WalletTransaction.create({
-            account_id: wallet_id,
-            type: 'Expense',
-            direction: 'Out',
-            amount: totalCost,
-            reference_id: order.id,
-            reference_type: 'ServiceCost',
-            description: `Cost payment for Service #${order.id} - ${salesOrderItem.service_name}`,
-            tenant_id: order.tenant_id
-          }, { transaction });
-
-          await WalletAccount.decrement('balance', {
-            by: totalCost,
-            where: { id: wallet_id },
+          totalCost = parseFloat(salesOrderItem.cost) * parseInt(salesOrderItem.quantity || 1);
+          serviceName = salesOrderItem.service_name;
+        } else {
+          const { ServiceType } = require('../models');
+          const serviceType = await ServiceType.findOne({
+            where: { id: order.service_type_id, tenant_id: req.user.tenant_id },
             transaction
           });
-          
-          updates.is_cost_deducted = true;
+          if (serviceType && parseFloat(serviceType.cost_price) > 0) {
+            totalCost = parseFloat(serviceType.cost_price);
+            serviceName = serviceType.name;
+          }
+        }
+
+        if (totalCost > 0) {
+          if (cost_type === 'Supplier' && cost_supplier_id) {
+            const { SupplierPurchase } = require('../models');
+            await SupplierPurchase.create({
+              tenant_id: req.user.tenant_id,
+              supplier_id: cost_supplier_id,
+              reference_type: 'ServiceOrder',
+              reference_id: order.id,
+              amount: totalCost,
+              description: `Cost for Service #${order.id} - ${serviceName}`
+            }, { transaction });
+            updates.is_cost_deducted = true;
+            updates.cost_type = 'Supplier';
+            updates.cost_supplier_id = cost_supplier_id;
+          } else if (wallet_id) {
+            const { WalletTransaction, WalletAccount } = require('../models');
+            await WalletTransaction.create({
+              account_id: wallet_id,
+              type: 'Expense',
+              direction: 'Out',
+              amount: totalCost,
+              reference_id: order.id,
+              reference_type: 'ServiceCost',
+              description: `Cost payment for Service #${order.id} - ${serviceName}`,
+              tenant_id: order.tenant_id
+            }, { transaction });
+
+            await WalletAccount.decrement('balance', {
+              by: totalCost,
+              where: { id: wallet_id },
+              transaction
+            });
+            updates.is_cost_deducted = true;
+            updates.cost_type = 'Wallet';
+          }
         }
       }
 
@@ -291,23 +344,11 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
       (oldStatus === 'CompletedInvoicePending' || oldStatus === 'CompletedInvoiceCreated') &&
       status === 'In Progress'
     ) {
-      // REVERSAL — block if invoice is already processed
-      const persistentInvoice = await Invoice.findOne({
-        where: {
-          service_order_id: order.id,
-          status: { [Op.in]: ['Sent', 'Partially Paid', 'Paid'] },
-          tenant_id: req.user.tenant_id
-        },
-        transaction
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'Completed services cannot be reverted.'
       });
-      if (persistentInvoice) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: 'Cannot revert this service. Its invoice has already been processed (Sent/Paid).'
-        });
-      }
-      updates.completed_at = null;
     }
 
     await order.update(updates, { transaction });
@@ -345,9 +386,24 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
         : 'Service completed — waiting for invoice to be created.';
     }
 
+    let deducted_wallet_name = '';
+    if (updatedOrder.is_cost_deducted) {
+      const { WalletTransaction, WalletAccount } = require('../models');
+      const wt = await WalletTransaction.findOne({
+        where: { reference_id: updatedOrder.id, reference_type: 'ServiceCost', tenant_id: req.user.tenant_id },
+        include: [{ model: WalletAccount, attributes: ['name'] }]
+      });
+      if (wt && wt.WalletAccount) {
+        deducted_wallet_name = wt.WalletAccount.name;
+      }
+    }
+
+    const orderData = updatedOrder.toJSON();
+    orderData.deducted_wallet_name = deducted_wallet_name;
+
     res.json({
       success: true,
-      data: updatedOrder,
+      data: orderData,
       message: returnMessage
     });
   } catch (err) {
@@ -371,8 +427,7 @@ exports.deleteServiceOrder = async (req, res, next) => {
     }
 
     // Dependency check: Invoices
-    const invoiceCount = await Invoice.count({ where: { service_order_id: order.id, tenant_id: req.user.tenant_id } });
-    if (invoiceCount > 0) {
+    if (order.invoice_id) {
       return res.status(400).json({ 
         success: false, 
         message: 'Cannot delete a Service Order that has an associated Invoice.' 

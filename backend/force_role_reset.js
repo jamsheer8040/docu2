@@ -11,6 +11,8 @@ async function resetRoles() {
       services: { read: true, write: true, delete: true },
       invoices: { read: true, write: true, delete: true },
       expenses: { read: true, write: true, delete: true },
+      sales_orders: { read: true, write: true, delete: true },
+      suppliers: { read: true, write: true, delete: true },
       wallet: { read: true, write: true, delete: true },
       reports: { read: true, write: true, delete: true },
       settings: { read: true, write: true, delete: true }
@@ -23,22 +25,18 @@ async function resetRoles() {
       services: { read: true, write: true, delete: false },
       invoices: { read: true, write: true, delete: false },
       expenses: { read: true, write: true, delete: false },
+      sales_orders: { read: true, write: true, delete: false },
+      suppliers: { read: true, write: true, delete: false },
       wallet: { read: true, write: false, delete: false },
       reports: { read: true, write: false, delete: false },
       settings: { read: false, write: false, delete: false }
     };
 
     // Force Update Admin
-    await Role.upsert({
-        name: 'Admin',
-        permissions: adminPermissions
-    });
+    await Role.update({ permissions: adminPermissions }, { where: { name: 'Admin' } });
 
     // Force Update Staff
-    await Role.upsert({
-        name: 'Staff',
-        permissions: staffPermissions
-    });
+    await Role.update({ permissions: staffPermissions }, { where: { name: 'Staff' } });
 
     console.log('[System] ROLES RESTORED TO FULL ACCESS.');
     process.exit(0);

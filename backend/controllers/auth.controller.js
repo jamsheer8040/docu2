@@ -255,9 +255,12 @@ exports.getPublicPlans = async (req, res) => {
 exports.registerTenant = async (req, res) => {
   const { companyName, slug, name, email, password, planId, billingCycle } = req.body;
 
-  if (!companyName || !slug || !name || !email || !password || !planId || !billingCycle) {
+  if (!companyName || !slug || !name || !email || !password || !planId) {
     return res.status(400).json({ success: false, message: 'All fields are required.' });
   }
+
+  // Default billingCycle to monthly if not provided by frontend
+  const finalBillingCycle = billingCycle || 'monthly';
 
   const slugRegex = /^[a-z0-9-]+$/;
   if (!slugRegex.test(slug)) {
@@ -291,7 +294,7 @@ exports.registerTenant = async (req, res) => {
       slug,
       plan_id: planId,
       status: 'new_registration',
-      billing_cycle: billingCycle
+      billing_cycle: finalBillingCycle
     }, { transaction });
 
     // Insert history

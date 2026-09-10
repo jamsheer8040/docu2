@@ -167,9 +167,10 @@
               </template>
 
               <template v-slot:item.actions="{ item }">
-                <v-btn icon="mdi-pencil-outline" variant="text" size="small" color="primary" @click="openEditTenant(item)"></v-btn>
-                <v-btn icon="mdi-calendar-plus" variant="text" size="small" color="success" @click="openExtendSubscription(item)" title="Extend Subscription"></v-btn>
-                <v-btn icon="mdi-history" variant="text" size="small" color="info" @click="openHistory(item)"></v-btn>
+                <v-btn icon="mdi-pencil-outline" variant="text" size="small" color="info" @click="openEditTenant(item)" title="Edit"></v-btn>
+                <v-btn v-if="item.status === 'new_registration'" icon="mdi-check-circle-outline" variant="text" size="small" color="success" @click="openApproveTrial(item)" title="Approve Trial"></v-btn>
+                <v-btn v-if="['new_registration', 'trial', 'trial_expired', 'suspended', 'expired'].includes(item.status)" icon="mdi-rocket-launch" variant="text" size="small" color="primary" @click="openActivate(item)" title="Activate Subscription"></v-btn>
+                <v-btn icon="mdi-history" variant="text" size="small" color="secondary" @click="openHistory(item)" title="History"></v-btn>
               </template>
             </v-data-table>
           </v-window-item>
@@ -305,6 +306,21 @@
         <v-card-title class="font-weight-black text-h5 mb-4">Edit Workspace Subscription</v-card-title>
         <v-card-text>
           <v-form ref="tenantForm">
+            <div class="mb-6 pa-4 bg-grey-lighten-4 rounded-lg border">
+              <div class="text-caption text-uppercase font-weight-bold text-grey-darken-1 mb-2">Current Configuration</div>
+              <v-row dense>
+                <v-col cols="6"><span class="font-weight-medium">Status:</span> {{ tenantDialog.data.original_status }}</v-col>
+                <v-col cols="6"><span class="font-weight-medium">Plan:</span> {{ getPlanName(tenantDialog.data.plan_id) }}</v-col>
+                <v-col cols="6"><span class="font-weight-medium">Billing Cycle:</span> {{ tenantDialog.data.billing_cycle }}</v-col>
+                <v-col cols="6" v-if="tenantDialog.data.original_status === 'trial'">
+                  <span class="font-weight-medium">Trial Ends:</span> {{ tenantDialog.data.trial_ends_at || 'N/A' }}
+                </v-col>
+                <v-col cols="6" v-else>
+                  <span class="font-weight-medium">Subscription Ends:</span> {{ tenantDialog.data.subscription_ends_at || 'N/A' }}
+                </v-col>
+              </v-row>
+            </div>
+
             <v-select
               v-model="tenantDialog.data.plan_id"
               :items="plans"
@@ -316,7 +332,7 @@
 
             <v-select
               v-model="tenantDialog.data.status"
-              :items="['new_registration', 'trial', 'active', 'suspended', 'expired', 'trial_expired', 'cancelled']"
+              :items="availableStatuses"
               label="Account Status"
               class="mb-4"
             ></v-select>
@@ -471,22 +487,22 @@
       </v-card>
     </v-dialog>
 
-    <!-- Extend Subscription Dialog -->
-    <v-dialog v-model="extendDialog.show" max-width="400" persistent>
+    <!-- Approve Trial Dialog -->
+    <v-dialog v-model="approveTrialDialog.show" max-width="400" persistent>
       <v-card class="rounded-2xl pa-4">
-        <v-card-title class="font-weight-black text-h5 mb-4">Extend Subscription</v-card-title>
+        <v-card-title class="font-weight-black text-h5 mb-4">Approve Trial</v-card-title>
         <v-card-text>
-          <v-form ref="extendForm">
+          <v-form ref="approveTrialForm">
             <v-select
-              v-model="extendDialog.data.extension_type"
-              :items="[{title: '+1 Month', value: 'month'}, {title: '+1 Year', value: 'year'}, {title: 'Custom Date', value: 'custom'}]"
-              label="Extension Amount"
+              v-model="approveTrialDialog.data.duration"
+              :items="[{title: '14 Days', value: 14}, {title: '30 Days', value: 30}, {title: 'Custom', value: 'custom'}]"
+              label="Trial Duration"
               class="mb-4"
             ></v-select>
             
             <v-text-field
-              v-if="extendDialog.data.extension_type === 'custom'"
-              v-model="extendDialog.data.custom_date"
+              v-if="approveTrialDialog.data.duration === 'custom'"
+              v-model="approveTrialDialog.data.custom_date"
               label="Custom End Date"
               type="date"
               class="mb-4"
@@ -495,8 +511,38 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="extendDialog.show = false">Cancel</v-btn>
-          <v-btn color="success" variant="flat" class="px-6 rounded-lg" @click="saveExtendSubscription" :loading="extendDialog.loading">Extend</v-btn>
+          <v-btn variant="text" @click="approveTrialDialog.show = false">Cancel</v-btn>
+          <v-btn color="success" variant="flat" class="px-6 rounded-lg" @click="saveApproveTrial" :loading="approveTrialDialog.loading">Approve</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Activate Subscription Dialog -->
+    <v-dialog v-model="activateDialog.show" max-width="400" persistent>
+      <v-card class="rounded-2xl pa-4">
+        <v-card-title class="font-weight-black text-h5 mb-4">Activate Subscription</v-card-title>
+        <v-card-text>
+          <v-form ref="activateForm">
+            <v-select
+              v-model="activateDialog.data.plan_id"
+              :items="plans"
+              item-title="name"
+              item-value="id"
+              label="Subscription Plan"
+              class="mb-4"
+            ></v-select>
+            <v-select
+              v-model="activateDialog.data.billing_cycle"
+              :items="[{title: 'Monthly Billing', value: 'monthly'}, {title: 'Yearly Billing', value: 'yearly'}]"
+              label="Billing Cycle"
+              class="mb-4"
+            ></v-select>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="activateDialog.show = false">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" class="px-6 rounded-lg" @click="saveActivate" :loading="activateDialog.loading">Activate & Invoice</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -592,14 +638,16 @@ const tenantDialog = reactive({
   data: {}
 });
 
-const extendDialog = reactive({
+const approveTrialDialog = reactive({
   show: false,
   loading: false,
-  data: {
-    tenant_id: null,
-    extension_type: 'month',
-    custom_date: ''
-  }
+  data: { tenant_id: null, duration: 14, custom_date: '' }
+});
+
+const activateDialog = reactive({
+  show: false,
+  loading: false,
+  data: { tenant_id: null, plan_id: null, billing_cycle: 'monthly' }
 });
 
 const planDialog = reactive({
@@ -627,6 +675,33 @@ const historyHeaders = [
   { title: 'New Status', key: 'new_status' },
   { title: 'Package', key: 'Plan' }
 ];
+
+const availableStatuses = computed(() => {
+  const original = tenantDialog.data.original_status;
+  if (!original) return [];
+  
+  // Logical rules for transitions
+  if (['active', 'expired', 'cancelled', 'suspended'].includes(original)) {
+    // If it's already an active or past-active subscription, we don't go back to trial/new
+    return ['active', 'suspended', 'expired', 'cancelled'];
+  }
+  
+  if (original === 'trial' || original === 'trial_expired') {
+    return ['trial', 'trial_expired', 'active', 'suspended', 'cancelled'];
+  }
+  
+  if (original === 'new_registration') {
+    return ['new_registration', 'trial', 'active', 'cancelled'];
+  }
+  
+  // Fallback
+  return ['new_registration', 'trial', 'active', 'suspended', 'expired', 'trial_expired', 'cancelled'];
+});
+
+const getPlanName = (planId) => {
+  const plan = plans.value.find(p => p.id === planId);
+  return plan ? plan.name : 'Unknown';
+};
 
 onMounted(async () => {
   await fetchStats();
@@ -779,6 +854,7 @@ const openEditTenant = (item) => {
     id: item.id,
     plan_id: item.Plan?.id || null,
     status: item.status,
+    original_status: item.status,
     billing_cycle: item.billing_cycle || 'monthly',
     trial_ends_at: item.trial_ends_at ? dayjs(item.trial_ends_at).format('YYYY-MM-DD') : '',
     subscription_starts_at: item.subscription_starts_at ? dayjs(item.subscription_starts_at).format('YYYY-MM-DD') : '',
@@ -812,33 +888,65 @@ const saveTenantChanges = async () => {
   }
 };
 
-const openExtendSubscription = (item) => {
-  extendDialog.data = {
-    tenant_id: item.id,
-    extension_type: 'month',
-    custom_date: ''
-  };
-  extendDialog.show = true;
+const openApproveTrial = (item) => {
+  approveTrialDialog.data = { tenant_id: item.id, duration: 14, custom_date: '' };
+  approveTrialDialog.show = true;
 };
 
-const saveExtendSubscription = async () => {
-  extendDialog.loading = true;
+const saveApproveTrial = async () => {
+  approveTrialDialog.loading = true;
   try {
-    const res = await $api.put(`/saas/tenants/${extendDialog.data.tenant_id}/extend`, {
-      extension_type: extendDialog.data.extension_type,
-      custom_date: extendDialog.data.custom_date
+    let trial_ends_at = null;
+    if (approveTrialDialog.data.duration === 'custom') {
+      trial_ends_at = dayjs(approveTrialDialog.data.custom_date).toISOString();
+    } else {
+      trial_ends_at = dayjs().add(approveTrialDialog.data.duration, 'day').toISOString();
+    }
+    
+    const res = await $api.put(`/saas/tenants/${approveTrialDialog.data.tenant_id}/plan`, {
+      status: 'trial',
+      trial_ends_at
     });
+    
     if (res.data.success) {
-      showToast('Subscription extended successfully', 'success');
-      extendDialog.show = false;
+      showToast('Trial approved successfully', 'success');
+      approveTrialDialog.show = false;
       await fetchTenants();
       await fetchStats();
       await fetchInvoices();
     }
   } catch (err) {
-    showToast(err.response?.data?.message || 'Failed to extend subscription', 'error');
+    showToast('Failed to approve trial', 'error');
   } finally {
-    extendDialog.loading = false;
+    approveTrialDialog.loading = false;
+  }
+};
+
+const openActivate = (item) => {
+  activateDialog.data = { tenant_id: item.id, plan_id: item.Plan?.id, billing_cycle: item.billing_cycle || 'monthly' };
+  activateDialog.show = true;
+};
+
+const saveActivate = async () => {
+  activateDialog.loading = true;
+  try {
+    const res = await $api.put(`/saas/tenants/${activateDialog.data.tenant_id}/plan`, {
+      status: 'active',
+      plan_id: activateDialog.data.plan_id,
+      billing_cycle: activateDialog.data.billing_cycle
+    });
+    
+    if (res.data.success) {
+      showToast('Subscription activated successfully', 'success');
+      activateDialog.show = false;
+      await fetchTenants();
+      await fetchStats();
+      await fetchInvoices();
+    }
+  } catch (err) {
+    showToast('Failed to activate subscription', 'error');
+  } finally {
+    activateDialog.loading = false;
   }
 };
 

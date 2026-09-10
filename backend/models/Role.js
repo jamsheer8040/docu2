@@ -17,6 +17,7 @@ const Role = sequelize.define('Role', {
     defaultValue: {
       dashboard: { read: true, write: true, delete: true },
       customers: { read: false, write: false, delete: false },
+      suppliers: { read: false, write: false, delete: false },
       documents: { read: false, write: false, delete: false },
       services: { read: false, write: false, delete: false },
       invoices: { read: false, write: false, delete: false },
@@ -25,7 +26,8 @@ const Role = sequelize.define('Role', {
       reports: { read: false, write: false, delete: false },
       settings: { read: false, write: false, delete: false },
       financials: { read: false, write: false, delete: false },
-      management: { read: false, write: false, delete: false }
+      management: { read: false, write: false, delete: false },
+      tools: { read: false, write: false, delete: false }
     }
   },
   type: {

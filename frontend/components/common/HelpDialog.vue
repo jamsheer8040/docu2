@@ -4,7 +4,7 @@
       <v-avatar color="primary" variant="tonal" class="mr-3" size="40">
         <v-icon icon="mdi-help-circle-outline" color="primary"></v-icon>
       </v-avatar>
-      <div class="text-h6 font-weight-bold">DocClear Quick Guide</div>
+      <div class="text-h6 font-weight-bold">{{ configStore.appName }} Quick Guide</div>
       <v-spacer></v-spacer>
       <v-btn icon="mdi-close" variant="text" size="small" @click="$emit('close')"></v-btn>
     </v-card-title>
@@ -39,7 +39,7 @@
         class="rounded-xl border border-primary text-body-2"
         density="comfortable"
       >
-        Need more help? Contact our internal support team at **support@docclear.com** or internal extension #401.
+        Need more help? Contact our internal support team at **support@{{ configStore.appName.toLowerCase() }}.com** or internal extension #401.
       </v-alert>
     </v-card-text>
     
@@ -52,6 +52,9 @@
 </template>
 
 <script setup>
+import { useConfigStore } from '~/stores/config';
+const configStore = useConfigStore();
+
 defineEmits(['close']);
 
 const helpSections = [

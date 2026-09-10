@@ -124,7 +124,19 @@ exports.getInvoice = async (req, res) => {
 exports.createInvoice = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { customer_id, service_order_id, items, discount, tax, due_date, notes, status } = req.body;
+        const { customer_id, service_order_ids, items, discount, tax, due_date, notes, status } = req.body;
+        // Keep backwards compatibility for service_order_id
+        const orderIds = Array.isArray(service_order_ids) ? [...service_order_ids] : (req.body.service_order_id ? [req.body.service_order_id] : []);
+        
+        // Collect order IDs from items as well
+        if (items && Array.isArray(items)) {
+            items.forEach(i => {
+                const sId = i.service_order_id || i._service_order_id;
+                if (sId && !orderIds.includes(sId)) {
+                    orderIds.push(sId);
+                }
+            });
+        }
         
         if (!items || items.length === 0) {
             return res.status(400).json({ success: false, message: 'Invoice must have at least one item' });
@@ -132,14 +144,17 @@ exports.createInvoice = async (req, res) => {
 
         const invoiceNumber = await getNextInvoiceNumber(req.user.tenant_id);
         
-        let skipCostDeduction = false;
-        if (service_order_id) {
-            const ServiceOrder = require('../models/ServiceOrder');
-            const order = await ServiceOrder.findOne({ where: { id: service_order_id, tenant_id: req.user.tenant_id }, transaction });
-            if (order && order.is_cost_deducted) {
-                skipCostDeduction = true;
-            }
-        }
+        // Fetch all related service orders to check cost deductions
+        const ServiceOrder = require('../models/ServiceOrder');
+        const orders = orderIds.length > 0 
+            ? await ServiceOrder.findAll({ where: { id: { [Op.in]: orderIds }, tenant_id: req.user.tenant_id }, transaction })
+            : [];
+        
+        // Map of service_order_id to is_cost_deducted
+        const costDeductedMap = {};
+        orders.forEach(o => {
+            costDeductedMap[o.id] = o.is_cost_deducted;
+        });
 
         // Calculate Totals
         let subtotal = 0;
@@ -148,7 +163,7 @@ exports.createInvoice = async (req, res) => {
         const invoice = await Invoice.create({
             invoice_number: invoiceNumber,
             customer_id,
-            service_order_id: service_order_id || null,
+            service_order_id: null, // deprecated, using ServiceOrder.invoice_id
             discount: discount || 0,
             tax: tax || 0,
             due_date,
@@ -172,9 +187,12 @@ exports.createInvoice = async (req, res) => {
             subtotal += itemTotal;
             costTotal += (quantity * costPrice);
             
+            const sOrderId = item.service_order_id || item._service_order_id || null;
+
             return {
                 invoice_id: invoice.id,
-                description: item.description,
+                service_order_id: sOrderId,
+                description: item.description || (typeof item.selectedItem === 'string' ? item.selectedItem : (item.selectedItem?.name || 'Custom Service')),
                 quantity: quantity,
                 list_price: listPrice,
                 cost_price: costPrice,
@@ -185,63 +203,95 @@ exports.createInvoice = async (req, res) => {
                 unit_price: unitPrice,
                 total: itemTotal,
                 wallet_id: item.wallet_id || null,
-                tenant_id: req.user.tenant_id
+                cost_type: item.cost_type || null,
+                cost_supplier_id: item.cost_supplier_id || null,
+                tenant_id: req.user.tenant_id,
+                // Passing this internally for cost deduction logic
+                _service_order_id: sOrderId
             };
         });
 
-        await InvoiceItem.bulkCreate(itemRecords, { transaction });
+        const createdItems = await InvoiceItem.bulkCreate(itemRecords, { transaction });
 
         if (invoice.status === 'Issued') {
-            const { WalletTransaction, WalletAccount } = require('../models');
-            for (const item of itemRecords) {
-                if (item.wallet_id && item.cost_price > 0 && !skipCostDeduction) {
+            const { WalletTransaction, WalletAccount, SupplierPurchase, ServiceOrder } = require('../models');
+            for (let i = 0; i < itemRecords.length; i++) {
+                const item = itemRecords[i];
+                // Check if this specific item's service order already had its cost deducted
+                const skipCostDeduction = item._service_order_id ? costDeductedMap[item._service_order_id] : false;
+
+                if (!skipCostDeduction && item.cost_price > 0 && (item.wallet_id || item.cost_supplier_id)) {
                     const totalCost = parseFloat(item.cost_price) * parseInt(item.quantity);
                     if (totalCost > 0) {
-                        await WalletTransaction.create({
-                            account_id: item.wallet_id,
-                            type: 'Expense',
-                            direction: 'Out',
-                            amount: totalCost,
-                            reference_id: invoice.id,
-                            reference_type: 'InvoiceCost',
-                            description: `Cost payment for Invoice #${invoice.invoice_number} - ${item.description}`,
-                            tenant_id: invoice.tenant_id
-                        }, { transaction });
-                        await WalletAccount.decrement('balance', {
-                            by: totalCost,
-                            where: { id: item.wallet_id },
-                            transaction
-                        });
+                        if (item.cost_type === 'Supplier' && item.cost_supplier_id) {
+                            await SupplierPurchase.create({
+                                tenant_id: req.user.tenant_id,
+                                supplier_id: item.cost_supplier_id,
+                                reference_type: 'InvoiceItem',
+                                reference_id: createdItems[i].id,
+                                amount: totalCost,
+                                description: `Cost for Invoice #${invoice.invoice_number} - ${item.description}`
+                            }, { transaction });
+                        } else if (item.wallet_id) {
+                            await WalletTransaction.create({
+                                account_id: item.wallet_id,
+                                type: 'Expense',
+                                direction: 'Out',
+                                amount: totalCost,
+                                reference_id: invoice.id,
+                                reference_type: 'InvoiceCost',
+                                description: `Cost payment for Invoice #${invoice.invoice_number} - ${item.description}`,
+                                tenant_id: invoice.tenant_id
+                            }, { transaction });
+                            await WalletAccount.decrement('balance', {
+                                by: totalCost,
+                                where: { id: item.wallet_id },
+                                transaction
+                            });
+                        }
+
+                        // Mark linked service order as cost deducted so it never deducts twice
+                        if (item._service_order_id) {
+                            await ServiceOrder.update({
+                                is_cost_deducted: true,
+                                cost_type: item.cost_type || (item.wallet_id ? 'Wallet' : null),
+                                cost_supplier_id: item.cost_supplier_id || null
+                            }, {
+                                where: { id: item._service_order_id, tenant_id: req.user.tenant_id },
+                                transaction
+                            });
+                            costDeductedMap[item._service_order_id] = true;
+                        }
                     }
                 }
             }
         }
 
         // Update main total
-        const finalTotal = subtotal - (parseFloat(discount) || 0); // Note: overall tax field is separate, but we use item vat too. We'll leave global tax as is for now if they use it.
+        const finalTotal = subtotal - (parseFloat(discount) || 0); 
         await invoice.update({ 
             subtotal, 
             total: finalTotal + (parseFloat(tax) || 0),
             cost_total: costTotal
         }, { transaction });
 
-        // If service was waiting for an invoice (CompletedInvoicePending), promote it to CompletedInvoiceCreated
-        if (service_order_id) {
-            const ServiceOrder = require('../models/ServiceOrder');
-            const order = await ServiceOrder.findOne({ where: { id: service_order_id, tenant_id: req.user.tenant_id }, transaction });
-            if (order && order.status === 'CompletedInvoicePending') {
+        // Link orders to the invoice and promote status
+        if (orders.length > 0) {
+            const SalesOrderItem = require('../models/SalesOrderItem');
+            for (const order of orders) {
                 await order.update({
-                    status: 'CompletedInvoiceCreated'
+                    invoice_id: invoice.id,
+                    status: order.status === 'CompletedInvoicePending' ? 'CompletedInvoiceCreated' : order.status
                 }, { transaction });
 
-                // Sync status to SalesOrderItem
-                const SalesOrderItem = require('../models/SalesOrderItem');
-                const salesOrderItem = await SalesOrderItem.findOne({
-                    where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
-                    transaction
-                });
-                if (salesOrderItem) {
-                    await salesOrderItem.update({ status: 'CompletedInvoiceCreated' }, { transaction });
+                if (order.status === 'CompletedInvoicePending') {
+                    const salesOrderItem = await SalesOrderItem.findOne({
+                        where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
+                        transaction
+                    });
+                    if (salesOrderItem) {
+                        await salesOrderItem.update({ status: 'CompletedInvoiceCreated' }, { transaction });
+                    }
                 }
             }
         }
@@ -261,7 +311,7 @@ exports.createInvoice = async (req, res) => {
 exports.updateInvoice = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { customer_id, service_order_id, items, discount, tax, due_date, notes, status } = req.body;
+        const { customer_id, service_order_ids, service_order_id, items, discount, tax, due_date, notes, status } = req.body;
         const invoice = await Invoice.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id }, transaction });
 
         if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
@@ -272,13 +322,29 @@ exports.updateInvoice = async (req, res) => {
         // Remove existing items
         await InvoiceItem.destroy({ where: { invoice_id: invoice.id }, transaction });
         
-        let skipCostDeduction = false;
-        if (service_order_id) {
+        // Map of service_order_id to is_cost_deducted
+        const costDeductedMap = {};
+        const orderIds = Array.isArray(service_order_ids) ? [...service_order_ids] : (service_order_id ? [service_order_id] : []);
+        
+        // Add IDs from items if present
+        if (items && Array.isArray(items)) {
+            items.forEach(i => {
+                const sId = i.service_order_id || i._service_order_id;
+                if (sId && !orderIds.includes(sId)) {
+                    orderIds.push(sId);
+                }
+            });
+        }
+
+        if (orderIds.length > 0) {
             const ServiceOrder = require('../models/ServiceOrder');
-            const order = await ServiceOrder.findOne({ where: { id: service_order_id, tenant_id: req.user.tenant_id }, transaction });
-            if (order && order.is_cost_deducted) {
-                skipCostDeduction = true;
-            }
+            const orders = await ServiceOrder.findAll({
+                where: { id: orderIds, tenant_id: req.user.tenant_id },
+                transaction
+            });
+            orders.forEach(o => {
+                costDeductedMap[o.id] = o.is_cost_deducted;
+            });
         }
 
         // Calculate Totals
@@ -302,7 +368,7 @@ exports.updateInvoice = async (req, res) => {
             
             return {
                 invoice_id: invoice.id,
-                description: item.description,
+                description: item.description || (typeof item.selectedItem === 'string' ? item.selectedItem : (item.selectedItem?.name || 'Custom Service')),
                 quantity: quantity,
                 list_price: listPrice,
                 cost_price: costPrice,
@@ -313,33 +379,64 @@ exports.updateInvoice = async (req, res) => {
                 unit_price: unitPrice,
                 total: itemTotal,
                 wallet_id: item.wallet_id || null,
+                cost_type: item.cost_type || null,
+                cost_supplier_id: item.cost_supplier_id || null,
+                service_order_id: item.service_order_id || item._service_order_id || null,
+                _service_order_id: item.service_order_id || item._service_order_id || null,
                 tenant_id: req.user.tenant_id
             };
         });
 
-        await InvoiceItem.bulkCreate(itemRecords, { transaction });
+        const createdItems = await InvoiceItem.bulkCreate(itemRecords, { transaction });
 
         if (invoice.status === 'Issued') {
-            const { WalletTransaction, WalletAccount } = require('../models');
-            for (const item of itemRecords) {
-                if (item.wallet_id && item.cost_price > 0 && !skipCostDeduction) {
+            const { WalletTransaction, WalletAccount, SupplierPurchase, ServiceOrder } = require('../models');
+            for (let i = 0; i < itemRecords.length; i++) {
+                const item = itemRecords[i];
+                const skipCostDeduction = item._service_order_id ? costDeductedMap[item._service_order_id] : false;
+                
+                if (!skipCostDeduction && item.cost_price > 0 && (item.wallet_id || item.cost_supplier_id)) {
                     const totalCost = parseFloat(item.cost_price) * parseInt(item.quantity);
                     if (totalCost > 0) {
-                        await WalletTransaction.create({
-                            account_id: item.wallet_id,
-                            type: 'Expense',
-                            direction: 'Out',
-                            amount: totalCost,
-                            reference_id: invoice.id,
-                            reference_type: 'InvoiceCost',
-                            description: `Cost payment for Invoice #${invoice.invoice_number} - ${item.description}`,
-                            tenant_id: invoice.tenant_id
-                        }, { transaction });
-                        await WalletAccount.decrement('balance', {
-                            by: totalCost,
-                            where: { id: item.wallet_id },
-                            transaction
-                        });
+                        if (item.cost_type === 'Supplier' && item.cost_supplier_id) {
+                            await SupplierPurchase.create({
+                                tenant_id: req.user.tenant_id,
+                                supplier_id: item.cost_supplier_id,
+                                reference_type: 'InvoiceItem',
+                                reference_id: createdItems[i].id,
+                                amount: totalCost,
+                                description: `Cost for Invoice #${invoice.invoice_number} - ${item.description}`
+                            }, { transaction });
+                        } else if (item.wallet_id) {
+                            await WalletTransaction.create({
+                                account_id: item.wallet_id,
+                                type: 'Expense',
+                                direction: 'Out',
+                                amount: totalCost,
+                                reference_id: invoice.id,
+                                reference_type: 'InvoiceCost',
+                                description: `Cost payment for Invoice #${invoice.invoice_number} - ${item.description}`,
+                                tenant_id: invoice.tenant_id
+                            }, { transaction });
+                            await WalletAccount.decrement('balance', {
+                                by: totalCost,
+                                where: { id: item.wallet_id },
+                                transaction
+                            });
+                        }
+
+                        // Mark linked service order as cost deducted
+                        if (item._service_order_id) {
+                            await ServiceOrder.update({
+                                is_cost_deducted: true,
+                                cost_type: item.cost_type || (item.wallet_id ? 'Wallet' : null),
+                                cost_supplier_id: item.cost_supplier_id || null
+                            }, {
+                                where: { id: item._service_order_id, tenant_id: req.user.tenant_id },
+                                transaction
+                            });
+                            costDeductedMap[item._service_order_id] = true;
+                        }
                     }
                 }
             }
@@ -349,7 +446,7 @@ exports.updateInvoice = async (req, res) => {
         const finalTotal = subtotal - (parseFloat(discount) || 0) + (parseFloat(tax) || 0);
         await invoice.update({ 
             customer_id,
-            service_order_id: service_order_id || null,
+            service_order_id: null, // Deprecated, using invoice_id on ServiceOrder
             discount: discount || 0,
             tax: tax || 0,
             due_date,
@@ -360,23 +457,31 @@ exports.updateInvoice = async (req, res) => {
             cost_total: costTotal
         }, { transaction });
 
-        // If service was waiting for an invoice (CompletedInvoicePending), promote it to CompletedInvoiceCreated
-        if (service_order_id) {
+        // If services were waiting for an invoice (CompletedInvoicePending), promote them to CompletedInvoiceCreated
+        if (orderIds.length > 0) {
             const ServiceOrder = require('../models/ServiceOrder');
-            const order = await ServiceOrder.findOne({ where: { id: service_order_id, tenant_id: req.user.tenant_id }, transaction });
-            if (order && order.status === 'CompletedInvoicePending') {
-                await order.update({
-                    status: 'CompletedInvoiceCreated'
-                }, { transaction });
+            const orders = await ServiceOrder.findAll({
+                where: { id: orderIds, tenant_id: req.user.tenant_id },
+                transaction
+            });
+            
+            const SalesOrderItem = require('../models/SalesOrderItem');
+            
+            for (const order of orders) {
+                // Ensure link is maintained
+                await order.update({ invoice_id: invoice.id }, { transaction });
 
-                // Sync status to SalesOrderItem
-                const SalesOrderItem = require('../models/SalesOrderItem');
-                const salesOrderItem = await SalesOrderItem.findOne({
-                    where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
-                    transaction
-                });
-                if (salesOrderItem) {
-                    await salesOrderItem.update({ status: 'CompletedInvoiceCreated' }, { transaction });
+                if (order.status === 'CompletedInvoicePending') {
+                    await order.update({ status: 'CompletedInvoiceCreated' }, { transaction });
+
+                    // Sync status to SalesOrderItem
+                    const salesOrderItem = await SalesOrderItem.findOne({
+                        where: { service_order_id: order.id, tenant_id: req.user.tenant_id },
+                        transaction
+                    });
+                    if (salesOrderItem) {
+                        await salesOrderItem.update({ status: 'CompletedInvoiceCreated' }, { transaction });
+                    }
                 }
             }
         }
@@ -405,31 +510,76 @@ exports.updateStatus = async (req, res) => {
 
         if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
         
-        // 1. Wallet Deduction Logic for Government Fees (Cost Price)
+        // 1. Wallet Deduction & Supplier Billing Logic for Cost Price
         // Happens when an invoice transitions to Issued for the first time
         if (status === 'Issued' && invoice.status !== 'Issued' && invoice.status !== 'Paid' && invoice.status !== 'Partially Paid') {
+            const { SupplierPurchase, ServiceOrder, WalletTransaction, WalletAccount } = require('../models');
+            
+            // Collect linked service order IDs
+            const sOrderIds = invoice.InvoiceItems
+                .map(i => i.service_order_id)
+                .filter(Boolean);
+            
+            const linkedOrders = sOrderIds.length > 0
+                ? await ServiceOrder.findAll({
+                    where: { id: sOrderIds, tenant_id: req.user.tenant_id },
+                    transaction
+                  })
+                : [];
+            
+            const costDeductedMap = {};
+            linkedOrders.forEach(o => {
+                costDeductedMap[o.id] = o.is_cost_deducted;
+            });
+
             for (const item of invoice.InvoiceItems) {
-                if (item.wallet_id && item.cost_price > 0) {
+                const skipCostDeduction = item.service_order_id ? costDeductedMap[item.service_order_id] : false;
+
+                if (!skipCostDeduction && item.cost_price > 0 && (item.wallet_id || item.cost_supplier_id)) {
                     const totalCost = parseFloat(item.cost_price) * parseInt(item.quantity);
                     if (totalCost > 0) {
-                        // Create negative WalletTransaction (Expense)
-                        await WalletTransaction.create({
-                            account_id: item.wallet_id,
-                            type: 'Expense',
-                            direction: 'Out',
-                            amount: totalCost,
-                            reference_id: invoice.id,
-                            reference_type: 'InvoiceCost',
-                            description: `Cost payment for Invoice #${invoice.invoice_number} - ${item.description}`,
-                            tenant_id: invoice.tenant_id
-                        }, { transaction });
+                        if (item.cost_type === 'Supplier' && item.cost_supplier_id) {
+                            await SupplierPurchase.create({
+                                tenant_id: req.user.tenant_id,
+                                supplier_id: item.cost_supplier_id,
+                                reference_type: 'InvoiceItem',
+                                reference_id: item.id,
+                                amount: totalCost,
+                                description: `Cost for Invoice #${invoice.invoice_number} - ${item.description}`
+                            }, { transaction });
+                        } else if (item.wallet_id) {
+                            // Create negative WalletTransaction (Expense)
+                            await WalletTransaction.create({
+                                account_id: item.wallet_id,
+                                type: 'Expense',
+                                direction: 'Out',
+                                amount: totalCost,
+                                reference_id: invoice.id,
+                                reference_type: 'InvoiceCost',
+                                description: `Cost payment for Invoice #${invoice.invoice_number} - ${item.description}`,
+                                tenant_id: invoice.tenant_id
+                            }, { transaction });
 
-                        // Deduct from wallet balance
-                        await WalletAccount.decrement('balance', {
-                            by: totalCost,
-                            where: { id: item.wallet_id },
-                            transaction
-                        });
+                            // Deduct from wallet balance
+                            await WalletAccount.decrement('balance', {
+                                by: totalCost,
+                                where: { id: item.wallet_id },
+                                transaction
+                            });
+                        }
+
+                        // Mark linked service order as cost deducted so it never deducts twice
+                        if (item.service_order_id) {
+                            await ServiceOrder.update({
+                                is_cost_deducted: true,
+                                cost_type: item.cost_type || (item.wallet_id ? 'Wallet' : null),
+                                cost_supplier_id: item.cost_supplier_id || null
+                            }, {
+                                where: { id: item.service_order_id, tenant_id: req.user.tenant_id },
+                                transaction
+                            });
+                            costDeductedMap[item.service_order_id] = true;
+                        }
                     }
                 }
             }
@@ -438,6 +588,22 @@ exports.updateStatus = async (req, res) => {
         // Transition Logic: Reversing Issued -> Draft/Cancelled
         if ((status === 'Draft' || status === 'Cancelled' || status === 'Pending Approval') && 
             (invoice.status === 'Issued' || invoice.status === 'Paid' || invoice.status === 'Partially Paid')) {
+            const { ServiceOrder } = require('../models');
+            // Revert is_cost_deducted on linked service orders that had their costs deducted by this invoice
+            const sOrderIds = invoice.InvoiceItems
+                .map(i => i.service_order_id)
+                .filter(Boolean);
+            if (sOrderIds.length > 0) {
+                await ServiceOrder.update({
+                    is_cost_deducted: false,
+                    cost_type: null,
+                    cost_supplier_id: null
+                }, {
+                    where: { id: sOrderIds, tenant_id: req.user.tenant_id },
+                    transaction
+                });
+            }
+
             // Find ALL cost transactions for this invoice
             const costTransactions = await WalletTransaction.findAll({
                 where: { reference_id: invoice.id, reference_type: 'InvoiceCost', type: 'Expense', tenant_id: req.user.tenant_id },
@@ -452,6 +618,20 @@ exports.updateStatus = async (req, res) => {
                     transaction
                 });
                 await tx.destroy({ transaction });
+            }
+
+            // Find and destroy all SupplierPurchases related to these invoice items
+            const { SupplierPurchase } = require('../models');
+            const itemIds = invoice.InvoiceItems.map(i => i.id);
+            if (itemIds.length > 0) {
+                await SupplierPurchase.destroy({
+                    where: {
+                        reference_type: 'InvoiceItem',
+                        reference_id: { [Op.in]: itemIds },
+                        tenant_id: req.user.tenant_id
+                    },
+                    transaction
+                });
             }
         }
 

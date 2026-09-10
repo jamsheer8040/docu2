@@ -15,33 +15,75 @@ async function processExpiredTrials() {
 
     if (expiredTenants.length === 0) {
       console.log('[SaaS Jobs] No expired trials found.');
-      return;
-    }
+    } else {
+      const { TenantHistory } = require('../models');
 
-    const { TenantHistory } = require('../models');
+      for (const tenant of expiredTenants) {
+        await sequelize.transaction(async (t) => {
+          tenant.status = 'trial_expired';
+          await tenant.save({ transaction: t });
 
-    for (const tenant of expiredTenants) {
-      await sequelize.transaction(async (t) => {
-        tenant.status = 'trial_expired';
-        await tenant.save({ transaction: t });
-
-        await TenantHistory.create({
-          tenant_id: tenant.id,
-          action: 'Trial Expired (Auto)',
-          old_status: 'trial',
-          new_status: 'trial_expired',
-          plan_id: tenant.plan_id
-        }, { transaction: t });
-      });
-      console.log(`[SaaS Jobs] Tenant ${tenant.id} moved to trial_expired.`);
+          await TenantHistory.create({
+            tenant_id: tenant.id,
+            action: 'Trial Expired (Auto)',
+            old_status: 'trial',
+            new_status: 'trial_expired',
+            plan_id: tenant.plan_id
+          }, { transaction: t });
+        });
+        console.log(`[SaaS Jobs] Tenant ${tenant.id} moved to trial_expired.`);
+      }
     }
   } catch (err) {
     console.error('[SaaS Jobs] Error processing expired trials:', err);
   }
 }
 
-// In a real production app, use node-cron or pm2 scheduling.
-// For now, we export the function so it can be called if needed.
+async function processExpiredSubscriptions() {
+  console.log('[SaaS Jobs] Running processExpiredSubscriptions...');
+  try {
+    const expiredTenants = await Tenant.findAll({
+      where: {
+        status: 'active',
+        subscription_ends_at: {
+          [Op.lt]: new Date()
+        }
+      }
+    });
+
+    if (expiredTenants.length === 0) {
+      console.log('[SaaS Jobs] No expired subscriptions found.');
+    } else {
+      const { TenantHistory } = require('../models');
+
+      for (const tenant of expiredTenants) {
+        await sequelize.transaction(async (t) => {
+          tenant.status = 'expired';
+          await tenant.save({ transaction: t });
+
+          await TenantHistory.create({
+            tenant_id: tenant.id,
+            action: 'Subscription Expired (Auto)',
+            old_status: 'active',
+            new_status: 'expired',
+            plan_id: tenant.plan_id
+          }, { transaction: t });
+        });
+        console.log(`[SaaS Jobs] Tenant ${tenant.id} moved to expired.`);
+      }
+    }
+  } catch (err) {
+    console.error('[SaaS Jobs] Error processing expired subscriptions:', err);
+  }
+}
+
+async function runAllJobs() {
+  await processExpiredTrials();
+  await processExpiredSubscriptions();
+}
+
 module.exports = {
-  processExpiredTrials
+  processExpiredTrials,
+  processExpiredSubscriptions,
+  runAllJobs
 };

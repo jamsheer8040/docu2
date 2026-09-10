@@ -52,6 +52,26 @@ const ServiceOrder = sequelize.define('ServiceOrder', {
     defaultValue: false,
     allowNull: false
   },
+  cost_type: {
+    type: DataTypes.ENUM('Wallet', 'Supplier'),
+    allowNull: true
+  },
+  cost_supplier_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+    references: {
+      model: 'suppliers',
+      key: 'id'
+    }
+  },
+  invoice_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+    references: {
+      model: 'invoices',
+      key: 'id'
+    }
+  },
   tenant_id: {
     type: DataTypes.INTEGER,
     allowNull: false,

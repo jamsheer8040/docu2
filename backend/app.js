@@ -43,9 +43,11 @@ const managementRoutes = require('./routes/management.routes');
 const voucherDesignRoutes = require('./routes/voucher-design.routes');
 const leadRoutes = require('./routes/lead.routes');
 const emailRoutes = require('./routes/email.routes');
+const toolsRoutes = require('./routes/tools.routes');
+const supplierRoutes = require('./routes/supplier.routes');
 
 // Sync Database in development
-sequelize.sync({ alter: true })
+sequelize.sync({ alter: false })
   .then(async () => {
     console.log('[System] Synced successfully with all associations.');
     
@@ -54,6 +56,7 @@ sequelize.sync({ alter: true })
     const fullPermissions = {
       dashboard: { read: true, write: true, delete: true },
       customers: { read: true, write: true, delete: true },
+      suppliers: { read: true, write: true, delete: true },
       documents: { read: true, write: true, delete: true },
       services: { read: true, write: true, delete: true },
       invoices: { read: true, write: true, delete: true },
@@ -62,7 +65,8 @@ sequelize.sync({ alter: true })
       reports: { read: true, write: true, delete: true },
       settings: { read: true, write: true, delete: true },
       financials: { read: true, write: true, delete: true },
-      management: { read: true, write: true, delete: true }
+      management: { read: true, write: true, delete: true },
+      tools: { read: true, write: true, delete: true }
     };
 
     const [adminRole] = await Role.findOrCreate({
@@ -308,6 +312,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/roles', roleRoutes);
 app.use('/api/v1/wallet', walletRoutes);
 app.use('/api/v1/customers', customerRoutes);
+app.use('/api/v1/suppliers', supplierRoutes);
 app.use('/api/v1/documents', documentRoutes);
 app.use('/api/v1/services', serviceRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
@@ -325,6 +330,7 @@ app.use('/api/v1/management', managementRoutes);
 app.use('/api/v1/voucher-designs', voucherDesignRoutes);
 app.use('/api/v1/leads', leadRoutes);
 app.use('/api/v1/email', emailRoutes);
+app.use('/api/v1/tools', toolsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -360,6 +366,16 @@ app.listen(PORT, () => {
   // Start background cron jobs
   const { startDocumentReminderCron } = require('./cron/documentReminder.cron');
   startDocumentReminderCron();
+
+  // SaaS Subscription Cron Jobs
+  const cron = require('node-cron');
+  const { runAllJobs } = require('./cron/saas-jobs');
+  
+  // Run every hour at the 0th minute
+  cron.schedule('0 * * * *', async () => {
+    console.log('[Cron] Running SaaS subscription checks...');
+    await runAllJobs();
+  });
 });
 
 module.exports = app;
