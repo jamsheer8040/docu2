@@ -390,6 +390,42 @@
               <div v-if="groupedOrders.CompletedInvoiceCreated.length === 0" class="empty-col">No fully completed orders</div>
             </v-col>
 
+            <!-- FOLLOW UP REQUIRED -->
+            <v-col class="kanban-col">
+              <div class="kanban-header kanban-header--pending mb-4" style="background: rgba(245, 158, 11, 0.1); color: #D97706;">
+                <v-icon icon="mdi-calendar-alert" size="18" class="mr-2"></v-icon>
+                <span class="text-subtitle-2 font-weight-bold">Follow Up Required</span>
+                <v-chip size="x-small" class="ml-auto font-weight-bold" color="orange">{{ groupedOrders.FollowUpRequired.length }}</v-chip>
+              </div>
+              <v-slide-y-transition group>
+                <v-card v-for="order in groupedOrders.FollowUpRequired" :key="order.id + '-followup'" class="mb-3 order-card" border style="border-left: 4px solid #D97706 !important;">
+                  <v-card-text class="pa-3">
+                    <div class="d-flex justify-space-between align-start mb-2">
+                      <span class="text-caption font-weight-bold opacity-50 mt-1">Copy of #{{ String(order.id).padStart(5, '0') }}</span>
+                      <v-chip size="x-small" color="deep-purple" variant="tonal" class="font-weight-bold">{{ order.ServiceType?.name }}</v-chip>
+                    </div>
+                    <div class="text-body-2 font-weight-bold mb-1">{{ order.Customer?.name }}</div>
+
+                    <!-- Card details -->
+                    <div class="text-caption text-grey mb-2">
+                      <div>Created: {{ formatDate(order.created_at) }}</div>
+                      <div v-if="order.completed_at">Completed: {{ formatDate(order.completed_at) }}</div>
+                    </div>
+
+                    <div class="d-flex justify-center mt-2 pt-2 border-t">
+                      <v-btn
+                        v-if="auth.can('services', 'write')"
+                        color="success" block variant="tonal" size="small"
+                        prepend-icon="mdi-check-all"
+                        @click.stop="markFollowUpDone(order)"
+                      >Follow Up Done</v-btn>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-slide-y-transition>
+              <div v-if="groupedOrders.FollowUpRequired.length === 0" class="empty-col">No follow ups pending</div>
+            </v-col>
+
             <!-- 5. CANCELLED -->
             <v-col class="kanban-col">
               <div class="kanban-header kanban-header--cancelled mb-4">
@@ -615,7 +651,25 @@
       icon="mdi-check-circle-outline"
       :loading="serviceStore.loading"
       @confirm="executeOrderCompletion"
-    />
+    >
+      <v-card
+        class="mt-4 pa-3 d-flex align-center cursor-pointer transition-swing border"
+        :class="followUpRequired ? 'bg-orange-lighten-5 border-orange' : 'bg-grey-lighten-4 border-transparent'"
+        variant="flat"
+        @click="followUpRequired = !followUpRequired"
+      >
+        <v-icon
+          :icon="followUpRequired ? 'mdi-check-circle' : 'mdi-circle-outline'"
+          :color="followUpRequired ? 'orange' : 'grey'"
+          size="28"
+          class="mr-3"
+        ></v-icon>
+        <div class="d-flex flex-column text-left">
+          <span class="font-weight-bold" :class="followUpRequired ? 'text-orange-darken-2' : 'text-grey-darken-2'">Requires Follow-Up</span>
+          <span class="text-caption" :class="followUpRequired ? 'text-orange-darken-1' : 'text-grey'">Create a reminder card to verify results later</span>
+        </div>
+      </v-card>
+    </ConfirmDialog>
 
     <!-- Completion Cost Management Dialog -->
     <v-dialog v-model="completionWalletDialog.show" max-width="500px" persistent>
@@ -655,6 +709,24 @@
             prepend-inner-icon="mdi-truck-outline"
             :rules="[v => !!v || 'Supplier selection is required']"
           ></v-select>
+
+          <v-card
+            class="mt-4 pa-3 d-flex align-center cursor-pointer transition-swing border"
+            :class="followUpRequired ? 'bg-orange-lighten-5 border-orange' : 'bg-grey-lighten-4 border-transparent'"
+            variant="flat"
+            @click="followUpRequired = !followUpRequired"
+          >
+            <v-icon
+              :icon="followUpRequired ? 'mdi-check-circle' : 'mdi-circle-outline'"
+              :color="followUpRequired ? 'orange' : 'grey'"
+              size="28"
+              class="mr-3"
+            ></v-icon>
+            <div class="d-flex flex-column text-left">
+              <span class="font-weight-bold" :class="followUpRequired ? 'text-orange-darken-2' : 'text-grey-darken-2'">Requires Follow-Up</span>
+              <span class="text-caption" :class="followUpRequired ? 'text-orange-darken-1' : 'text-grey'">Create a reminder card to verify results later</span>
+            </div>
+          </v-card>
 
         </v-card-text>
         <v-card-actions class="pb-4">
@@ -715,6 +787,7 @@ const prefilledServiceOrderId = ref(null);
 const selectedOrderForCompletion = ref(null);
 const selectedViewInvoice = ref(null);
 const editingOrder = ref(null);
+const followUpRequired = ref(false);
 
 const sortBy = ref('default');
 const criticalityFilter = ref('All');
@@ -790,10 +863,14 @@ const groupedOrders = computed(() => {
     'In Progress': [],
     CompletedInvoicePending: [],
     CompletedInvoiceCreated: [],
+    FollowUpRequired: [],
     Cancelled: []
   };
   filteredOrders.value.forEach(o => {
     if (groups[o.status] !== undefined) groups[o.status].push(o);
+    if (o.requires_follow_up && !o.is_follow_up_done && o.status.startsWith('Completed')) {
+      groups.FollowUpRequired.push({ ...o, is_followup_card: true });
+    }
   });
   return groups;
 });
@@ -889,7 +966,11 @@ const onSettingsError = (message) => {
 const confirmOrderCompletion = (order) => {
   selectedOrderForCompletion.value = order;
   
-  if (configStore.walletDeductionPoint === 'service_completion' && !order.is_cost_deducted) {
+  const walletPoint = String(configStore.walletDeductionPoint).toLowerCase().trim();
+  const costPrice = parseFloat(order.ServiceType?.cost_price || 0);
+
+  if (walletPoint === 'service_completion' && !order.is_cost_deducted && costPrice > 0) {
+    followUpRequired.value = false;
     completionWalletDialog.selectedWallet = null;
     completionWalletDialog.selectedSupplier = null;
     completionWalletDialog.costType = 'Wallet';
@@ -898,6 +979,7 @@ const confirmOrderCompletion = (order) => {
   }
   
   const invoiceExists = hasInvoice(order);
+  followUpRequired.value = false;
   confirmDialog.title = 'Complete Service?';
   confirmDialog.confirmText = 'Complete Service';
   confirmDialog.message = invoiceExists
@@ -909,12 +991,17 @@ const confirmOrderCompletion = (order) => {
 const executeOrderCompletion = async () => {
   if (!selectedOrderForCompletion.value) return;
   try {
-    const res = await serviceStore.updateOrderStatus(selectedOrderForCompletion.value.id, 'Completed');
+    const { $api } = useNuxtApp();
+    const res = await $api.put(`/services/orders/${selectedOrderForCompletion.value.id}/status`, {
+      status: 'Completed',
+      requires_follow_up: followUpRequired.value
+    });
     confirmDialog.show = false;
-    showSnackbar(res?.message || 'Service completed!', 'success');
+    showSnackbar(res.data?.message || 'Service completed!', 'success');
     selectedOrderForCompletion.value = null;
+    fetchData(); // Refresh to update kanban board
   } catch (err) {
-    showSnackbar(err.message || 'Failed to complete order', 'error');
+    showSnackbar(err.response?.data?.message || err.message || 'Failed to complete order', 'error');
   }
 };
 
@@ -927,7 +1014,8 @@ const executeOrderCompletionWithCost = async () => {
     // Determine payload based on costType
     const payload = {
       status: 'Completed',
-      cost_type: completionWalletDialog.costType
+      cost_type: completionWalletDialog.costType,
+      requires_follow_up: followUpRequired.value
     };
     if (completionWalletDialog.costType === 'Wallet') {
       payload.wallet_id = completionWalletDialog.selectedWallet;
@@ -939,8 +1027,9 @@ const executeOrderCompletionWithCost = async () => {
     const response = await $api.put(`/services/orders/${selectedOrderForCompletion.value.id}/status`, payload);
     
     completionWalletDialog.show = false;
-    showSnackbar(res?.message || 'Service completed!', 'success');
+    showSnackbar(response.data?.message || 'Service completed!', 'success');
     selectedOrderForCompletion.value = null;
+    fetchData(); // Refresh to update kanban board
   } catch (err) {
     showSnackbar(err.message || 'Failed to complete order', 'error');
   }
@@ -953,6 +1042,17 @@ const revertOrder = async (order) => {
     showSnackbar('Service reverted to In Progress');
   } catch (err) {
     showSnackbar(err.message || 'Failed to revert', 'error');
+  }
+};
+
+const markFollowUpDone = async (order) => {
+  try {
+    const { $api } = useNuxtApp();
+    const res = await $api.put(`/services/orders/${order.id}/followup`);
+    showSnackbar(res.data?.message || 'Follow up completed!', 'success');
+    fetchData();
+  } catch (err) {
+    showSnackbar(err.response?.data?.message || err.message || 'Failed to mark follow up done', 'error');
   }
 };
 

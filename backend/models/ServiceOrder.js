@@ -72,6 +72,16 @@ const ServiceOrder = sequelize.define('ServiceOrder', {
       key: 'id'
     }
   },
+  requires_follow_up: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false
+  },
+  is_follow_up_done: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false
+  },
   tenant_id: {
     type: DataTypes.INTEGER,
     allowNull: false,

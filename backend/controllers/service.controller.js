@@ -233,7 +233,7 @@ exports.createServiceOrder = async (req, res, next) => {
 exports.updateServiceOrderStatus = async (req, res, next) => {
   const transaction = await sequelize.transaction();
   try {
-    const { status, wallet_id, cost_type, cost_supplier_id } = req.body;
+    const { status, wallet_id, cost_type, cost_supplier_id, requires_follow_up } = req.body;
     const order = await ServiceOrder.findOne({
       where: { id: req.params.id, tenant_id: req.user.tenant_id },
       include: [
@@ -250,6 +250,9 @@ exports.updateServiceOrderStatus = async (req, res, next) => {
 
     const oldStatus = order.status;
     const updates = { status };
+    if (requires_follow_up !== undefined) {
+      updates.requires_follow_up = requires_follow_up;
+    }
 
     // CANCEL VALIDATION: block if active invoice exists or service is completed
     if (status === 'Cancelled') {
@@ -659,6 +662,19 @@ exports.incrementReminderCount = async (req, res, next) => {
     await order.save();
 
     res.json({ success: true, reminder_count: order.reminder_count });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.markFollowUpDone = async (req, res, next) => {
+  try {
+    const { ServiceOrder } = require('../models');
+    const order = await ServiceOrder.findOne({ where: { id: req.params.id, tenant_id: req.user.tenant_id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    
+    await order.update({ is_follow_up_done: true });
+    res.json({ success: true, message: 'Follow up marked as done' });
   } catch (err) {
     next(err);
   }

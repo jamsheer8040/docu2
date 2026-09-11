@@ -9,6 +9,7 @@
       <div class="pa-8 text-center pt-8">
         <v-card-text class="pa-0 text-body-1 font-weight-medium text-grey-darken-2 line-height-relaxed">
           {{ message }}
+          <slot></slot>
         </v-card-text>
         
         <v-card-actions class="mt-8 pa-0 d-flex flex-column gap-3">

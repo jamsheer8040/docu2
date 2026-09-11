@@ -26,6 +26,7 @@ router.post('/orders/escalate', requirePermission('services', 'write'), serviceC
 router.get('/config/criticality', requirePermission('settings', 'read'), serviceController.getCriticalityConfig);
 router.put('/config/criticality', requirePermission('settings', 'write'), serviceController.saveCriticalityConfig);
 router.put('/orders/:id/status', requirePermission('services', 'write'), serviceController.updateServiceOrderStatus);
+router.put('/orders/:id/followup', requirePermission('services', 'write'), serviceController.markFollowUpDone);
 router.post('/orders/:id/remind', requirePermission('services', 'write'), serviceController.incrementReminderCount);
 router.delete('/orders/:id', requirePermission('services', 'delete'), serviceController.deleteServiceOrder);
 

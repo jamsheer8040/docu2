@@ -1,6 +1,6 @@
 <template>
   <v-dialog v-model="internalDialog" max-width="500px" persistent>
-    <v-card class="glass-card-ethereal pa-4" variant="flat">
+    <v-card class="rounded-xl pa-4" variant="elevated">
       <v-card-title class="text-h6 font-weight-bold text-blue-grey-darken-4">
         Make Payment
       </v-card-title>
@@ -14,7 +14,6 @@
             label="Pay From Wallet"
             variant="outlined"
             density="comfortable"
-            bg-color="rgba(255,255,255,0.4)"
             :loading="loadingWallets"
             :disabled="loadingWallets"
             :rules="[v => !!v || 'Wallet is required']"
@@ -26,7 +25,6 @@
             type="number"
             variant="outlined"
             density="comfortable"
-            bg-color="rgba(255,255,255,0.4)"
             :rules="[
               v => !!v || 'Amount is required',
               v => v > 0 || 'Must be greater than 0',
@@ -40,7 +38,6 @@
             type="date"
             variant="outlined"
             density="comfortable"
-            bg-color="rgba(255,255,255,0.4)"
             :rules="[v => !!v || 'Date is required']"
           ></v-text-field>
 
@@ -49,7 +46,6 @@
             label="Reference (Optional)"
             variant="outlined"
             density="comfortable"
-            bg-color="rgba(255,255,255,0.4)"
           ></v-text-field>
         </v-form>
       </v-card-text>

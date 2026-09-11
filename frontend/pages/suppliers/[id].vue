@@ -139,7 +139,7 @@
     <!-- Main Detail Content -->
     <v-row>
       <!-- Supplier Profile & Contact Info -->
-      <v-col cols="12" md="4">
+      <v-col cols="12" md="3">
         <v-card class="glass-card-ethereal pa-6 rounded-2xl h-100" variant="flat">
           <h3 class="text-h6 font-weight-black text-blue-grey-darken-4 mb-4 d-flex align-center gap-2">
             <v-icon color="primary" size="22">mdi-office-building-outline</v-icon>
@@ -223,7 +223,7 @@
       </v-col>
 
       <!-- Accounting Tabs: Purchases & Payments -->
-      <v-col cols="12" md="8">
+      <v-col cols="12" md="9">
         <v-card class="glass-card-ethereal overflow-hidden rounded-2xl h-100" variant="flat">
           <div class="px-4 pt-3 pb-0" style="background: rgba(255,255,255,0.2); border-bottom: 1px solid rgba(0,0,0,0.06)">
             <v-tabs v-model="tab" color="primary" class="bg-transparent">
