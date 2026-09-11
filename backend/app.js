@@ -249,10 +249,10 @@ const supplierRoutes = require('./routes/supplier.routes');
       });
     }
     console.log('[System] Default email templates initialized.');
-  })
-  .catch(err => {
+  } catch (err) {
     console.error('[System] Startup FAILED:', err);
-  });
+  }
+})();
 
 // Rate Limiting
 const globalLimiter = rateLimit({
