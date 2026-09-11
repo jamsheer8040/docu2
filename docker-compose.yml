@@ -5,9 +5,9 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: docclear_db
-      MYSQL_ROOT_PASSWORD: supersecretroot
+      MYSQL_ROOT_PASSWORD: DocClear#2026!ProdDbPass
       MYSQL_USER: docuser
-      MYSQL_PASSWORD: docpassword
+      MYSQL_PASSWORD: DocClear#2026!ProdDbPass
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
@@ -37,7 +37,7 @@ services:
       DB_PORT: 3306
       DB_NAME: docclear_db
       DB_USER: root
-      DB_PASS: supersecretroot
+      DB_PASS: DocClear#2026!ProdDbPass
       JWT_SECRET: docclear_production_jwt_secret_key_change_me
       JWT_EXPIRES_IN: 24h
       FRONTEND_URL: https://folderex.online
