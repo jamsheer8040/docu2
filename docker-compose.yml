@@ -26,7 +26,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     volumes:
       - backend_uploads:/app/uploads
       - backend_backups:/app/backups
@@ -40,14 +40,14 @@ services:
       DB_PASS: supersecretroot
       JWT_SECRET: docclear_production_jwt_secret_key_change_me
       JWT_EXPIRES_IN: 24h
-      FRONTEND_URL: http://localhost:3000
+      FRONTEND_URL: https://folderex.online
 
   frontend:
     build: ./frontend
     container_name: docclear_frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "127.0.0.1:3000:80"
     depends_on:
       - backend
 
