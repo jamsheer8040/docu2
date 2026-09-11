@@ -1,13 +1,19 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
+const dbName = process.env.DB_NAME || 'docclear_db';
+const dbUser = process.env.DB_USER || 'root';
+const dbPass = process.env.DB_PASS !== undefined ? process.env.DB_PASS : '';
+const dbHost = process.env.DB_HOST || 'localhost';
+const dbPort = process.env.DB_PORT || 3306;
+
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASS,
+  dbName,
+  dbUser,
+  dbPass,
   {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 3306,
+    host: dbHost,
+    port: dbPort,
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     define: {
