@@ -286,7 +286,7 @@
             </v-card>
           </v-col>
         </v-row>
-      </col>
+      </v-col>
     </v-row>
 
     <!-- Global Snackbar -->
