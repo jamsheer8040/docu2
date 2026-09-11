@@ -1,46 +1,26 @@
-const { Sequelize, DataTypes } = require('sequelize');
+require('dotenv').config();
+const { sequelize, User, Role } = require('./models');
 const bcrypt = require('bcryptjs');
-
-const sequelize = new Sequelize('docclear_db', 'root', '', {
-  host: 'localhost',
-  dialect: 'mysql',
-  logging: false
-});
 
 async function createAdmin() {
   try {
     console.log('[Setup] Creating Admin Credentials...');
-    
-    // Define Role & User in-place to bypass association issues for this script
-    const Role = sequelize.define('Role', {
-      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-      name: { type: DataTypes.STRING, allowNull: false, unique: true },
-      permissions: { type: DataTypes.JSON, allowNull: false }
-    }, { tableName: 'roles', underscored: true, timestamps: true });
-
-    const User = sequelize.define('User', {
-      id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-      name: { type: DataTypes.STRING, allowNull: false },
-      email: { type: DataTypes.STRING, allowNull: false, unique: true },
-      password_hash: { type: DataTypes.STRING, allowNull: false },
-      role_id: { type: DataTypes.INTEGER },
-      is_active: { type: DataTypes.BOOLEAN, defaultValue: true }
-    }, { tableName: 'users', underscored: true, timestamps: true });
+    await sequelize.authenticate();
 
     // 1. Ensure Admin Role exists
     const [adminRole] = await Role.findOrCreate({
       where: { name: 'Admin' },
       defaults: {
         permissions: {
-          dashboard: { read: true },
+          dashboard: { read: true, write: true, delete: true },
           customers: { read: true, write: true, delete: true },
           documents: { read: true, write: true, delete: true },
           services: { read: true, write: true, delete: true },
           invoices: { read: true, write: true, delete: true },
           expenses: { read: true, write: true, delete: true },
-          wallet: { read: true, write: true },
-          reports: { read: true },
-          settings: { read: true, write: true }
+          wallet: { read: true, write: true, delete: true },
+          reports: { read: true, write: true, delete: true },
+          settings: { read: true, write: true, delete: true }
         }
       }
     });
