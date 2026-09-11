@@ -19,9 +19,10 @@ console.log('  Loaded: User, Role');
 
 // 2. Customer & Lead
 const Customer = require(path.join(__dirname, 'Customer.js'));
+const UserCustomer = require(path.join(__dirname, 'UserCustomer.js'));
 const Lead = require(path.join(__dirname, 'Lead.js'));
 const LeadStatusHistory = require(path.join(__dirname, 'LeadStatusHistory.js'));
-console.log('  Loaded: Customer, Lead, LeadStatusHistory');
+console.log('  Loaded: Customer, UserCustomer, Lead, LeadStatusHistory');
 
 // 2.5 Supplier & Purchases
 const Supplier = require(path.join(__dirname, 'Supplier.js'));
@@ -240,8 +241,8 @@ Tenant.hasMany(DividendPayment, { foreignKey: 'tenant_id' });
 User.belongsTo(Role, { foreignKey: 'role_id' });
 Role.hasMany(User, { foreignKey: 'role_id' });
 
-User.belongsToMany(Customer, { through: 'user_customers', foreignKey: 'user_id', otherKey: 'customer_id', as: 'LinkedCustomers' });
-Customer.belongsToMany(User, { through: 'user_customers', foreignKey: 'customer_id', otherKey: 'user_id', as: 'LinkedUsers' });
+User.belongsToMany(Customer, { through: UserCustomer, foreignKey: 'user_id', otherKey: 'customer_id', as: 'LinkedCustomers' });
+Customer.belongsToMany(User, { through: UserCustomer, foreignKey: 'customer_id', otherKey: 'user_id', as: 'LinkedUsers' });
 
 WalletTransaction.belongsTo(WalletAccount, { foreignKey: 'account_id' });
 WalletAccount.hasMany(WalletTransaction, { foreignKey: 'account_id' });
@@ -446,6 +447,7 @@ const db = {
   User,
   Role,
   Customer,
+  UserCustomer,
   Supplier,
   SupplierPurchase,
   SupplierPayment,
