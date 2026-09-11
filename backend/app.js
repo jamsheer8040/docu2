@@ -46,9 +46,12 @@ const emailRoutes = require('./routes/email.routes');
 const toolsRoutes = require('./routes/tools.routes');
 const supplierRoutes = require('./routes/supplier.routes');
 
-// Sync Database in development
-sequelize.sync({ alter: false })
-  .then(async () => {
+// Sync Database safely on startup
+(async () => {
+  try {
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0;');
+    await sequelize.sync({ alter: false });
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1;');
     console.log('[System] Synced successfully with all associations.');
     
     // Sync Admin Role (Force all permissions ON at every startup)
@@ -101,7 +104,7 @@ sequelize.sync({ alter: false })
     }
     console.log('[System] Default roles initialized.');
 
-    // 3. Seed Developer Account (Hidden Super User)
+    // 3. Seed Developer & Admin Accounts
     const [developerRole] = await Role.findOrCreate({
       where: { name: 'Developer', tenant_id: null },
       defaults: {
@@ -122,6 +125,23 @@ sequelize.sync({ alter: false })
         tenant_id: null
       }
     });
+
+    const bcrypt = require('bcryptjs');
+    const adminPasswordHash = await bcrypt.hash('admin123', 10);
+    const [adminUser, adminCreated] = await User.findOrCreate({
+      where: { email: 'admin@test.com' },
+      defaults: {
+        name: 'System Administrator',
+        password_hash: adminPasswordHash,
+        role_id: adminRole.id,
+        is_active: true,
+        tenant_id: 1
+      }
+    });
+
+    if (adminCreated) {
+      console.log('[System] Admin User created (admin@test.com / admin123).');
+    }
 
     // Seed Default System Config
     const { SystemConfig } = require('./models');
