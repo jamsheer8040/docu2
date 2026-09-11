@@ -183,7 +183,110 @@
             </v-card>
           </v-col>
         </v-row>
-      </v-col>
+
+        <!-- Database Auto-Backup Section -->
+        <v-row class="mt-6">
+          <v-col cols="12">
+            <v-card class="glass-card animate-slide-up" style="--delay: 0.4s">
+              <v-card-title class="pa-6 d-flex align-center justify-space-between flex-wrap">
+                <div class="d-flex align-center">
+                  <v-avatar color="info-container" size="40" class="mr-4">
+                    <v-icon icon="mdi-database-clock-outline" color="info"></v-icon>
+                  </v-avatar>
+                  <div>
+                    <span class="text-h6 font-weight-bold d-block">Database Auto-Backup & Retention</span>
+                    <span class="text-caption text-grey-darken-1">Scheduled daily at 02:00 AM UAE Time (Asia/Dubai)</span>
+                  </div>
+                </div>
+
+                <div class="d-flex align-center ga-2 mt-4 mt-sm-0">
+                  <v-chip color="info" variant="flat" size="small" class="font-weight-bold">
+                    <v-icon icon="mdi-clock-outline" start size="14"></v-icon> 02:00 AM UAE Daily
+                  </v-chip>
+                  <v-chip color="warning" variant="flat" size="small" class="font-weight-bold">
+                    <v-icon icon="mdi-delete-clock-outline" start size="14"></v-icon> Auto-Cleanup > 7 Days
+                  </v-chip>
+                  <v-btn
+                    color="primary"
+                    variant="flat"
+                    prepend-icon="mdi-database-export-outline"
+                    @click="triggerBackup"
+                    :loading="creatingBackup"
+                    class="font-weight-bold ml-2"
+                    rounded="lg"
+                  >
+                    CREATE BACKUP NOW
+                  </v-btn>
+                </div>
+              </v-card-title>
+              <v-divider class="opacity-10"></v-divider>
+
+              <v-card-text class="pa-6">
+                <!-- Backup File List Table -->
+                <div v-if="loadingBackups" class="text-center py-8">
+                  <v-progress-circular indeterminate color="primary" size="36"></v-progress-circular>
+                  <div class="mt-2 text-caption text-grey">Loading backup files...</div>
+                </div>
+
+                <div v-else-if="backups.length === 0" class="text-center py-8 bg-grey-lighten-4 rounded-xl">
+                  <v-icon icon="mdi-database-off-outline" size="48" color="grey-lighten-1" class="mb-2"></v-icon>
+                  <div class="text-subtitle-1 font-weight-bold text-grey-darken-2">No Backups Found</div>
+                  <div class="text-caption text-grey mb-4">Click "Create Backup Now" to generate an instant database backup.</div>
+                </div>
+
+                <v-table v-else class="bg-transparent">
+                  <thead>
+                    <tr>
+                      <th class="text-left font-weight-bold">Backup File</th>
+                      <th class="text-left font-weight-bold">Size</th>
+                      <th class="text-left font-weight-bold">Created Date (GST)</th>
+                      <th class="text-left font-weight-bold">Retention Status</th>
+                      <th class="text-right font-weight-bold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in backups" :key="item.filename">
+                      <td class="font-weight-bold font-mono">
+                        <v-icon icon="mdi-file-document-outline" size="18" color="primary" class="mr-2"></v-icon>
+                        {{ item.filename }}
+                      </td>
+                      <td>
+                        <v-chip size="x-small" color="primary" variant="outlined">{{ item.sizeFormatted }}</v-chip>
+                      </td>
+                      <td class="text-body-2">{{ formatDateTime(item.createdAt) }}</td>
+                      <td>
+                        <v-chip size="x-small" :color="item.ageDays >= 6 ? 'error' : 'success'" variant="tonal">
+                          {{ item.ageDays === 0 ? 'Today' : `${item.ageDays} day(s) old` }}
+                        </v-chip>
+                      </td>
+                      <td class="text-right">
+                        <v-btn
+                          icon="mdi-download"
+                          variant="text"
+                          color="primary"
+                          size="small"
+                          @click="downloadBackup(item.filename)"
+                          title="Download SQL File"
+                          class="mr-1"
+                        ></v-btn>
+                        <v-btn
+                          icon="mdi-delete-outline"
+                          variant="text"
+                          color="error"
+                          size="small"
+                          @click="confirmDeleteBackup(item.filename)"
+                          :loading="deletingBackup === item.filename"
+                          title="Delete Backup"
+                        ></v-btn>
+                      </td>
+                    </tr>
+                  </tbody>
+                </v-table>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </col>
     </v-row>
 
     <!-- Global Snackbar -->
@@ -228,6 +331,12 @@ const security = reactive({
 const expiryOption = ref('1year');
 const customExpiryDate = ref('');
 
+// Backup State
+const backups = ref([]);
+const loadingBackups = ref(false);
+const creatingBackup = ref(false);
+const deletingBackup = ref(null);
+
 const snackbar = reactive({
   show: false,
   text: '',
@@ -241,6 +350,7 @@ const isExpired = computed(() => {
 
 onMounted(async () => {
   await fetchConfigs();
+  await fetchBackups();
 });
 
 const fetchConfigs = async () => {
@@ -251,6 +361,68 @@ const fetchConfigs = async () => {
     }
   } catch (err) {
     showNotify('Error fetching system configurations', 'error');
+  }
+};
+
+const fetchBackups = async () => {
+  loadingBackups.value = true;
+  try {
+    const res = await $api.get('/config/backups');
+    if (res.data.success) {
+      backups.value = res.data.data;
+    }
+  } catch (err) {
+    showNotify('Error loading database backups', 'error');
+  } finally {
+    loadingBackups.value = false;
+  }
+};
+
+const triggerBackup = async () => {
+  creatingBackup.value = true;
+  try {
+    const res = await $api.post('/config/backups/create');
+    if (res.data.success) {
+      showNotify(res.data.message || 'Database backup created successfully', 'success');
+      await fetchBackups();
+    }
+  } catch (err) {
+    showNotify('Failed to create database backup', 'error');
+  } finally {
+    creatingBackup.value = false;
+  }
+};
+
+const downloadBackup = async (filename) => {
+  try {
+    const res = await $api.get(`/config/backups/download/${filename}`, {
+      responseType: 'blob'
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (err) {
+    showNotify('Error downloading backup file', 'error');
+  }
+};
+
+const confirmDeleteBackup = async (filename) => {
+  if (!confirm(`Are you sure you want to delete backup file "${filename}"?`)) return;
+  deletingBackup.value = filename;
+  try {
+    const res = await $api.delete(`/config/backups/${filename}`);
+    if (res.data.success) {
+      showNotify('Backup file deleted successfully', 'success');
+      await fetchBackups();
+    }
+  } catch (err) {
+    showNotify('Failed to delete backup file', 'error');
+  } finally {
+    deletingBackup.value = null;
   }
 };
 
@@ -320,6 +492,7 @@ const handleLogoUpload = async (event) => {
 };
 
 const formatDate = (date) => date ? dayjs(date).format('DD MMMM YYYY') : 'Never';
+const formatDateTime = (dateStr) => dateStr ? dayjs(dateStr).format('DD MMM YYYY, hh:mm A') : '-';
 
 const showNotify = (text, color = 'success') => {
   snackbar.text = text;

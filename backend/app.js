@@ -367,6 +367,10 @@ app.listen(PORT, () => {
   const { startDocumentReminderCron } = require('./cron/documentReminder.cron');
   startDocumentReminderCron();
 
+  // Start daily database backup cron (02:00 AM UAE Time)
+  const { startDatabaseBackupCron } = require('./cron/databaseBackup.cron');
+  startDatabaseBackupCron();
+
   // SaaS Subscription Cron Jobs
   const cron = require('node-cron');
   const { runAllJobs } = require('./cron/saas-jobs');
