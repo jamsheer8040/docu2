@@ -16,7 +16,8 @@ exports.verifyToken = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'docclear_production_jwt_secret_key_change_me';
+    const decoded = jwt.verify(token, secret);
 
     const user = await User.findByPk(decoded.id, {
       include: [
@@ -94,7 +95,8 @@ exports.optionalVerifyToken = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'docclear_production_jwt_secret_key_change_me';
+    const decoded = jwt.verify(token, secret);
 
     const user = await User.findByPk(decoded.id, {
       include: [

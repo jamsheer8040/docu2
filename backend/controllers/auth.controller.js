@@ -34,15 +34,17 @@ exports.login = async (req, res) => {
       });
     }
 
+    const secret = process.env.JWT_SECRET || 'docclear_production_jwt_secret_key_change_me';
+
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.Role?.name || 'Staff', tenant_id: user.tenant_id },
-      process.env.JWT_SECRET,
+      secret,
       { expiresIn: '15m' } // Short-lived access token
     );
 
     const refreshToken = jwt.sign(
       { id: user.id },
-      process.env.JWT_SECRET,
+      secret,
       { expiresIn: '7d' } // Long-lived refresh token
     );
 
